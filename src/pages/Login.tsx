@@ -2,12 +2,19 @@ import { useState } from "react";
 import { getSupabaseClient } from "../lib/supabase";
 import "./CSS/Login.css";
 
+type LoggedUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
 type LoginProps = {
   onGoToCadastro: () => void;
   onBack: () => void;
+  onLoginSuccess: (user: LoggedUser) => void;
 };
 
-export default function Login({ onGoToCadastro, onBack }: LoginProps) {
+export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,6 +54,11 @@ export default function Login({ onGoToCadastro, onBack }: LoginProps) {
       setSuccess(`Login realizado com sucesso, ${data.name}!`);
       setEmail("");
       setPassword("");
+      onLoginSuccess({
+        id: data.id,
+        name: data.name,
+        email: data.email,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao realizar login.";
       setError(message);
