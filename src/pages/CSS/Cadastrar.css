@@ -1,0 +1,11 @@
+.auth-page--cadastro {
+  background: #f0efe8;
+}
+
+.auth-page--cadastro .auth-page__card {
+  padding: 1.25rem;
+}
+
+.auth-page--cadastro .auth-page__heading {
+  margin-bottom: 1.25rem;
+}

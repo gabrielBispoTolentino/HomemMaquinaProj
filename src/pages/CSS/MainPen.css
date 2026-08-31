@@ -1,0 +1,83 @@
+.main-pen {
+  min-height: 100vh;
+  width: 100%;
+  background: #1a1b1d;
+}
+
+.main-pen__section {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.main-pen__background {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.main-pen__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(39, 39, 39, 0.65), rgba(39, 39, 39, 0.15), rgba(39, 39, 39, 0.25));
+}
+
+.main-pen__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  padding: 0 2rem 2.5rem;
+  text-align: center;
+}
+
+.main-pen__title {
+  font-size: clamp(3rem, 5vw, 5.2rem);
+  font-weight: 900;
+  line-height: 0.9;
+  font-style: italic;
+  color: #fff;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.main-pen__button {
+  width: min(100%, 220px);
+  border: 0;
+  border-radius: 9999px;
+  background: #2d5f88;
+  padding: 0.8rem 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(56, 86, 126, 0.4);
+  transition: filter 0.2s ease;
+}
+
+.main-pen__button:hover {
+  filter: brightness(1.08);
+}
+
+.main-pen__text {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.main-pen__link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
