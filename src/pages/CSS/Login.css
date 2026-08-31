@@ -143,6 +143,21 @@
   cursor: pointer;
 }
 
+.auth-page__message {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.auth-page__message--error {
+  color: #111827;
+}
+
+.auth-page__message--success {
+  color: #111827;
+}
+
 @media (min-width: 640px) {
   .auth-page__section {
     padding: 2rem;
