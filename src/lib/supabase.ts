@@ -1,4 +1,45 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+type Database = {
+  public: {
+    Tables: {
+      user: {
+        Row: { id: number; name: string; email: string; password: string };
+        Insert: { id?: number; name: string; email: string; password: string };
+        Update: Partial<{ name: string; email: string; password: string }>;
+        Relationships: [];
+      };
+      worlds: {
+        Row: {
+          id: string;
+          user_id: number;
+          name: string;
+          description: string | null;
+          accent_color: string | null;
+          icon: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: number;
+          name: string;
+          description?: string | null;
+          accent_color?: string | null;
+          icon?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["worlds"]["Insert"]>;
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
 
 const runtimeEnv = typeof Bun !== "undefined" ? Bun.env : {};
 const viteEnv = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
@@ -17,6 +58,8 @@ export const supabaseConfig = {
   anonKey: env.VITE_SUPABASE_ANON_KEY ?? "",
 };
 
+let supabaseClient: SupabaseClient<Database> | null = null;
+
 export function getSupabaseClient() {
   if (!supabaseConfig.url || !supabaseConfig.anonKey) {
     throw new Error(
@@ -24,11 +67,15 @@ export function getSupabaseClient() {
     );
   }
 
-  return createClient(supabaseConfig.url, supabaseConfig.anonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  });
+  if (!supabaseClient) {
+    supabaseClient = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+
+  return supabaseClient;
 }

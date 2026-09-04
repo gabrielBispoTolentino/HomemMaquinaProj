@@ -15,6 +15,12 @@
   padding: 0.25rem 0.2rem;
 }
 
+.world-list__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .world-list__header h1 {
   margin: 0;
   font-size: 2rem;
@@ -33,6 +39,24 @@
   cursor: pointer;
   display: grid;
   place-items: center;
+}
+
+.world-list__create-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: 999px;
+  background: #f5a7a1;
+  padding: 0.65rem 0.85rem;
+  color: #1f2b35;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.world-list__create-button span {
+  font-size: 1.4rem;
+  line-height: 0.8;
 }
 
 .world-list__list {
@@ -82,6 +106,95 @@
   line-height: 1.05;
   white-space: pre-line;
   color: #111827;
+}
+
+.world-list__dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 30, 0.68);
+}
+
+.world-list__dialog {
+  width: min(100%, 420px);
+  border-radius: 18px;
+  padding: 1.25rem;
+  background: #f8f5f1;
+  color: #1f2937;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
+}
+
+.world-list__dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.world-list__dialog-header h2 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.world-list__dialog-close {
+  border: 0;
+  background: transparent;
+  color: #1f2937;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.world-list__field {
+  display: block;
+  margin-bottom: 1rem;
+  color: #2f3d4a;
+  font-weight: 600;
+}
+
+.world-list__field span {
+  font-weight: 400;
+}
+
+.world-list__field input,
+.world-list__field textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 0.45rem;
+  border: 1px solid #a9b7c1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.75rem;
+  font: inherit;
+  color: #1f2937;
+  resize: vertical;
+}
+
+.world-list__field input:focus,
+.world-list__field textarea:focus {
+  border-color: #4f6f8a;
+  outline: 2px solid rgba(79, 111, 138, 0.2);
+}
+
+.world-list__dialog-submit {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  background: #4f6f8a;
+  padding: 0.8rem 1rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.world-list__dialog-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 @media (min-width: 640px) {
