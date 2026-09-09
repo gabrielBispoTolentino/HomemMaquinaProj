@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { log } from "console";
 
 type Database = {
   public: {
@@ -42,9 +43,14 @@ type Database = {
 };
 
 const runtimeEnv = typeof Bun !== "undefined" ? Bun.env : {};
-const viteEnv = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
-const processEnv = typeof process !== "undefined" ? process.env ?? {} : {};
-const windowEnv = typeof window !== "undefined" && (window as any).__ENV__ ? (window as any).__ENV__ : {};
+const viteEnv =
+  (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
+const processEnv = typeof process !== "undefined" ? (process.env ?? {}) : {};
+const windowEnv =
+  typeof window !== "undefined" && (window as any).__ENV__
+    ? (window as any).__ENV__
+    : {};
+console.log(viteEnv.VITE_SUPABASE_URL);
 
 const env = {
   ...processEnv,
@@ -53,9 +59,24 @@ const env = {
   ...windowEnv,
 };
 
+// export const supabaseConfig = {
+//   url: env.VITE_SUPABASE_URL ?? "",
+//   anonKey: env.VITE_SUPABASE_ANON_KEY ?? "",
+// };
+
 export const supabaseConfig = {
-  url: env.VITE_SUPABASE_URL ?? "",
-  anonKey: env.VITE_SUPABASE_ANON_KEY ?? "",
+  url:
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_SUPABASE_URL) ||
+    (typeof process !== "undefined" && process.env?.VITE_SUPABASE_URL) ||
+    (typeof Bun !== "undefined" && Bun.env?.VITE_SUPABASE_URL) ||
+    "",
+  anonKey:
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+    (typeof process !== "undefined" && process.env?.VITE_SUPABASE_ANON_KEY) ||
+    (typeof Bun !== "undefined" && Bun.env?.VITE_SUPABASE_ANON_KEY) ||
+    "",
 };
 
 let supabaseClient: SupabaseClient<Database> | null = null;
@@ -68,13 +89,17 @@ export function getSupabaseClient() {
   }
 
   if (!supabaseClient) {
-    supabaseClient = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
+    supabaseClient = createClient<Database>(
+      supabaseConfig.url,
+      supabaseConfig.anonKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
       },
-    });
+    );
   }
 
   return supabaseClient;

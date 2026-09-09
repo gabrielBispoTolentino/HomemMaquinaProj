@@ -1,68 +1,51 @@
+/* Layout Principal - Tema Claro/Creme */
 .world-list {
   min-height: 100vh;
   width: 100%;
-  background: #1f2b35;
-  color: #f5f7fa;
-  padding: 1.25rem 1rem 2rem;
+  background: #fdfaf4; /* Fundo bege claro inspirado na imagem */
+  color: #1f2b35;
+  padding: 1rem 1rem 6rem; /* padding extra no final para a barra de navegação */
+  position: relative;
+  overflow-x: hidden;
 }
 
 .world-list__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin: 0 auto 1.2rem;
+  justify-content: flex-end; /* Apenas o ícone da lua na direita */
+  margin: 0 auto 1rem;
   max-width: 420px;
-  padding: 0.25rem 0.2rem;
-}
-
-.world-list__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.world-list__header h1 {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 600;
-  color: #e8ebee;
+  padding: 0.5rem;
 }
 
 .world-list__theme-toggle {
   width: 42px;
   height: 42px;
   border: 0;
-  border-radius: 50%;
   background: transparent;
-  color: #f5f7fa;
-  font-size: 1.7rem;
+  color: #111827;
+  font-size: 1.5rem;
   cursor: pointer;
   display: grid;
   place-items: center;
 }
 
-.world-list__create-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 0;
-  border-radius: 999px;
-  background: #f5a7a1;
-  padding: 0.65rem 0.85rem;
-  color: #1f2b35;
-  font-weight: 700;
-  cursor: pointer;
+/* Status e Textos auxiliares */
+.world-list__status {
+  text-align: center;
+  color: #2f3d4a;
+  font-weight: 500;
 }
 
-.world-list__create-button span {
-  font-size: 1.4rem;
-  line-height: 0.8;
+.world-list__status--error {
+  color: #ff634f;
 }
 
+/* Lista e Cartões */
 .world-list__list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   max-width: 420px;
   margin: 0 auto;
 }
@@ -70,24 +53,24 @@
 .world-card {
   position: relative;
   width: 100%;
-  min-height: 96px;
+  min-height: 110px;
   border: 0;
-  border-radius: 22px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 1rem;
-  padding: 1rem 1.1rem;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
   text-align: left;
-  color: #111827;
-  box-shadow: 0 10px 18px rgba(17, 24, 39, 0.12);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: transform 0.15s ease, filter 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease;
 }
 
-.world-card:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.02);
+.world-card:active {
+  transform: scale(0.98);
 }
 
 .world-card__icon {
@@ -95,19 +78,84 @@
   align-items: center;
   justify-content: center;
   min-width: 44px;
-  font-size: clamp(2rem, 4vw, 2.6rem);
-  line-height: 1;
-  color: #111827;
+  font-size: 2.2rem;
+  color: #000000; /* Ícone sempre preto como na imagem */
 }
 
 .world-card__name {
-  font-size: clamp(1.9rem, 5vw, 2.8rem);
-  font-weight: 700;
-  line-height: 1.05;
-  white-space: pre-line;
-  color: #111827;
+  font-size: 1.4rem;
+  font-weight: bold;
+  line-height: 1.2;
+  color: #ffffff; /* Texto sempre branco */
+  /* Fonte simulando o aspecto retrô/máquina de escrever da imagem */
+  font-family: "Courier New", Courier, monospace;
+  letter-spacing: 0.5px;
 }
 
+/* ----------------------------------
+   Barra de Navegação Inferior (Mobile)
+   ---------------------------------- */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: #111827; /* Azul bem escuro/quase preto */
+  border-radius: 24px 24px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 1rem;
+  z-index: 5;
+}
+
+.bottom-nav__item {
+  background: none;
+  border: none;
+  color: #a9b7c1; /* Ícones acinzentados/inativos */
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.bottom-nav__item:hover,
+.bottom-nav__item:active {
+  color: #4adeaa; /* Cor de destaque ao clicar */
+}
+
+.bottom-nav__spacer {
+  width: 80px; /* Abre espaço no meio para o botão grande não sobrepor os ícones */
+}
+
+/* Botão Flutuante (Criar Mundo) */
+.bottom-nav__fab {
+  position: absolute;
+  bottom: 25px; /* Empurra o botão para cima da barra */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 64px;
+  background: #374a5e; /* Fundo ligeiramente mais claro que a barra */
+  border: 6px solid #fdfaf4; /* Cria a ilusão de recorte arredondado usando a cor de fundo do site */
+  border-radius: 50%;
+  color: #aae0e8; /* Cor do sinal de mais (+) */
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  padding-bottom: 5px; /* Ajuste visual do sinal de mais para ficar no centro */
+}
+
+/* ----------------------------------
+   Modal de Criação (Seu código original adaptado)
+   ---------------------------------- */
 .world-list__dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -122,7 +170,7 @@
   width: min(100%, 420px);
   border-radius: 18px;
   padding: 1.25rem;
-  background: #f8f5f1;
+  background: #fdfaf4; /* Combinando com o novo fundo */
   color: #1f2937;
   box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
 }
@@ -176,18 +224,18 @@
 
 .world-list__field input:focus,
 .world-list__field textarea:focus {
-  border-color: #4f6f8a;
-  outline: 2px solid rgba(79, 111, 138, 0.2);
+  border-color: #111827;
+  outline: 2px solid rgba(17, 24, 39, 0.1);
 }
 
 .world-list__dialog-submit {
   width: 100%;
   border: 0;
   border-radius: 999px;
-  background: #4f6f8a;
-  padding: 0.8rem 1rem;
+  background: #111827; /* Botão escuro combinando com a nav inferior */
+  padding: 1rem;
   color: #fff;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -200,5 +248,14 @@
 @media (min-width: 640px) {
   .world-list {
     padding-top: 2rem;
+    /* Caso queira travar no centro em monitores grandes */
+    max-width: 450px;
+    margin: 0 auto;
+    border-left: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+  }
+  .bottom-nav {
+    max-width: 450px;
+    margin: 0 auto;
   }
 }

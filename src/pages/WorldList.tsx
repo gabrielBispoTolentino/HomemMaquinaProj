@@ -20,6 +20,9 @@ type WorldListProps = {
   onBack: () => void;
 };
 
+// Cores baseadas na imagem para caso o mundo não tenha cor salva
+const DEFAULT_COLORS = ["#ff634f", "#4adeaa", "#1aa4c8"];
+
 export default function WorldList({ user, onBack }: WorldListProps) {
   const [worlds, setWorlds] = useState<WorldItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,13 +53,12 @@ export default function WorldList({ user, onBack }: WorldListProps) {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        if (selectError) {
-          throw selectError;
-        }
+        if (selectError) throw selectError;
 
         setWorlds(data ?? []);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Erro ao carregar mundos.";
+        const message =
+          err instanceof Error ? err.message : "Erro ao carregar mundos.";
         setError(message);
       } finally {
         setLoading(false);
@@ -68,7 +70,6 @@ export default function WorldList({ user, onBack }: WorldListProps) {
 
   const handleCreateWorld = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     if (!user) {
       setCreateError("Faça login para criar um mundo.");
       return;
@@ -95,17 +96,16 @@ export default function WorldList({ user, onBack }: WorldListProps) {
         .select("id, name, accent_color, icon")
         .single();
 
-      if (insertError) {
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
       const createdWorld = data as WorldItem;
-      setWorlds(currentWorlds => [createdWorld, ...currentWorlds]);
+      setWorlds((currentWorlds) => [createdWorld, ...currentWorlds]);
       setWorldName("");
       setWorldDescription("");
       setIsCreateOpen(false);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao criar mundo.";
+      const message =
+        err instanceof Error ? err.message : "Erro ao criar mundo.";
       setCreateError(message);
     } finally {
       setCreating(false);
@@ -120,24 +120,18 @@ export default function WorldList({ user, onBack }: WorldListProps) {
 
   return (
     <main className="world-list">
+      {/* Cabeçalho minimalista (apenas o ícone da lua) */}
       <header className="world-list__header">
-        <div>
-          <h1>Menu</h1>
-          {user && <span className="world-list__user">{user.name}</span>}
-        </div>
-        <div className="world-list__actions">
-          {user && (
-            <button type="button" className="world-list__create-button" onClick={() => setIsCreateOpen(true)}>
-              <span aria-hidden="true">+</span>
-              Criar mundo
-            </button>
-          )}
-          <button type="button" aria-label="Voltar" className="world-list__theme-toggle" onClick={onBack}>
-            ←
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label="Alternar Tema"
+          className="world-list__theme-toggle"
+        >
+          🌙
+        </button>
       </header>
 
+      {/* Lista de Mundos */}
       {loading ? (
         <p className="world-list__status">Carregando mundos...</p>
       ) : error ? (
@@ -146,34 +140,115 @@ export default function WorldList({ user, onBack }: WorldListProps) {
         <p className="world-list__status">Nenhum mundo criado ainda.</p>
       ) : (
         <section className="world-list__list" aria-label="Lista de mundos">
-          {worlds.map(world => (
-            <button
-              key={world.id}
-              type="button"
-              className="world-card"
-              style={{ background: world.accent_color ?? "#f5a7a1" }}
-            >
-              <span className="world-card__icon" aria-hidden="true">
-                {world.icon ?? "✎"}
-              </span>
-              <span className="world-card__name">{world.name}</span>
-            </button>
-          ))}
+          {worlds.map((world, index) => {
+            const bgColor =
+              world.accent_color ??
+              DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+            return (
+              <button
+                key={world.id}
+                type="button"
+                className="world-card"
+                style={{ background: bgColor }}
+              >
+                <span className="world-card__icon" aria-hidden="true">
+                  {world.icon ?? "✎"}
+                </span>
+                <span className="world-card__name">{world.name}</span>
+              </button>
+            );
+          })}
         </section>
       )}
 
+      {/* Barra de Navegação Inferior */}
+      <nav className="bottom-nav">
+        <button
+          aria-label="Início"
+          className="bottom-nav__item"
+          onClick={onBack}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </button>
+        <button aria-label="Buscar" className="bottom-nav__item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+
+        {/* Espaço reservado para o botão flutuante central */}
+        <div className="bottom-nav__spacer" />
+
+        <button aria-label="Salvos" className="bottom-nav__item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+        <button aria-label="Perfil" className="bottom-nav__item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </button>
+
+        {user && (
+          <button
+            type="button"
+            className="bottom-nav__fab"
+            onClick={() => setIsCreateOpen(true)}
+            aria-label="Criar mundo"
+          >
+            +
+          </button>
+        )}
+      </nav>
+
+      {/* Modal de Criação (Reaproveitando suas classes originais) */}
       {isCreateOpen && (
-        <div className="world-list__dialog-backdrop" role="presentation" onMouseDown={closeCreateDialog}>
+        <div
+          className="world-list__dialog-backdrop"
+          role="presentation"
+          onMouseDown={closeCreateDialog}
+        >
           <section
             className="world-list__dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-world-title"
-            onMouseDown={event => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="world-list__dialog-header">
               <h2 id="create-world-title">Novo mundo</h2>
-              <button type="button" className="world-list__dialog-close" onClick={closeCreateDialog} aria-label="Fechar">
+              <button
+                type="button"
+                className="world-list__dialog-close"
+                onClick={closeCreateDialog}
+                aria-label="Fechar"
+              >
                 ×
               </button>
             </div>
@@ -184,7 +259,7 @@ export default function WorldList({ user, onBack }: WorldListProps) {
                 <input
                   type="text"
                   value={worldName}
-                  onChange={event => setWorldName(event.target.value)}
+                  onChange={(event) => setWorldName(event.target.value)}
                   placeholder="Ex.: As terras de Aurora"
                   maxLength={80}
                   autoFocus
@@ -194,16 +269,24 @@ export default function WorldList({ user, onBack }: WorldListProps) {
                 Descrição <span>(opcional)</span>
                 <textarea
                   value={worldDescription}
-                  onChange={event => setWorldDescription(event.target.value)}
+                  onChange={(event) => setWorldDescription(event.target.value)}
                   placeholder="Conte um pouco sobre este mundo"
                   maxLength={500}
                   rows={3}
                 />
               </label>
 
-              {createError && <p className="world-list__status world-list__status--error">{createError}</p>}
+              {createError && (
+                <p className="world-list__status world-list__status--error">
+                  {createError}
+                </p>
+              )}
 
-              <button type="submit" className="world-list__dialog-submit" disabled={creating}>
+              <button
+                type="submit"
+                className="world-list__dialog-submit"
+                disabled={creating}
+              >
                 {creating ? "Criando..." : "Criar mundo"}
               </button>
             </form>
