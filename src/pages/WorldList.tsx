@@ -8,7 +8,7 @@ type LoggedUser = {
   email: string;
 };
 
-type WorldItem = {
+export type WorldItem = {
   id: string;
   name: string;
   accent_color?: string | null;
@@ -18,9 +18,10 @@ type WorldItem = {
 type WorldListProps = {
   user: LoggedUser | null;
   onBack: () => void;
+  onOpenWorld: (world: WorldItem) => void;
 };
 
-export default function WorldList({ user, onBack }: WorldListProps) {
+export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps) {
   const [worlds, setWorlds] = useState<WorldItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -152,6 +153,7 @@ export default function WorldList({ user, onBack }: WorldListProps) {
               type="button"
               className="world-card"
               style={{ background: world.accent_color ?? "#f5a7a1" }}
+              onClick={() => onOpenWorld(world)}
             >
               <span className="world-card__icon" aria-hidden="true">
                 {world.icon ?? "✎"}

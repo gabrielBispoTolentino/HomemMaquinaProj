@@ -33,6 +33,26 @@ type Database = {
         Update: Partial<Database["public"]["Tables"]["worlds"]["Insert"]>;
         Relationships: [];
       };
+      notes: {
+        Row: {
+          id: string;
+          world_id: string;
+          title: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          world_id: string;
+          title?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notes"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

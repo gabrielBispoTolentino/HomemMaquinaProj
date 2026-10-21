@@ -5,9 +5,11 @@ import "./index.css";
 import Cadastrar from "./pages/Cadastrar.tsx";
 import Login from "./pages/Login.tsx";
 import MainPen from "./pages/MainPen.tsx";
-import WorldList from "./pages/WorldList.tsx";
+import NoteEditor from "./pages/NoteEditor.tsx";
+import WorldList, { type WorldItem } from "./pages/WorldList.tsx";
+import WorldNotes, { type NoteItem } from "./pages/WorldNotes.tsx";
 
-export type Screen = "main" | "login" | "cadastro" | "worlds";
+export type Screen = "main" | "login" | "cadastro" | "worlds" | "notes" | "note";
 
 type LoggedUser = {
   id: number;
@@ -15,19 +17,32 @@ type LoggedUser = {
   email: string;
 };
 
+// Where the back button leads from each screen; main has no parent.
+const parentScreen: Record<Screen, Screen | null> = {
+  main: null,
+  login: "main",
+  cadastro: "main",
+  worlds: "main",
+  notes: "worlds",
+  note: "notes",
+};
+
 export function App() {
   const [screen, setScreen] = useState<Screen>("main");
   const [currentUser, setCurrentUser] = useState<LoggedUser | null>(null);
+  const [currentWorld, setCurrentWorld] = useState<WorldItem | null>(null);
+  const [currentNote, setCurrentNote] = useState<NoteItem | null>(null);
 
-  // Android hardware back button: return to the main screen, or exit from it.
+  // Android hardware back button: go up one screen, or exit from the main screen.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     const listener = CapacitorApp.addListener("backButton", () => {
-      if (screen === "main") {
-        CapacitorApp.exitApp();
+      const parent = parentScreen[screen];
+      if (parent) {
+        setScreen(parent);
       } else {
-        setScreen("main");
+        CapacitorApp.exitApp();
       }
     });
 
@@ -53,8 +68,34 @@ export function App() {
     return <Cadastrar onBack={() => setScreen("main")} onGoToLogin={() => setScreen("login")} />;
   }
 
+  if (screen === "note" && currentWorld) {
+    return <NoteEditor world={currentWorld} note={currentNote} onBack={() => setScreen("notes")} />;
+  }
+
+  if (screen === "notes" && currentWorld) {
+    return (
+      <WorldNotes
+        world={currentWorld}
+        onBack={() => setScreen("worlds")}
+        onOpenNote={note => {
+          setCurrentNote(note);
+          setScreen("note");
+        }}
+      />
+    );
+  }
+
   if (screen === "worlds") {
-    return <WorldList user={currentUser} onBack={() => setScreen("main")} />;
+    return (
+      <WorldList
+        user={currentUser}
+        onBack={() => setScreen("main")}
+        onOpenWorld={world => {
+          setCurrentWorld(world);
+          setScreen("notes");
+        }}
+      />
+    );
   }
 
   return <MainPen onEntrar={() => setScreen("login")} onGoToCadastro={() => setScreen("cadastro")} />;
