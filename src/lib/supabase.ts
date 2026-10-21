@@ -39,6 +39,7 @@ type Database = {
           world_id: string;
           title: string;
           content: string;
+          category_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -47,10 +48,27 @@ type Database = {
           world_id: string;
           title?: string;
           content?: string;
+          category_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["notes"]["Insert"]>;
+        Relationships: [];
+      };
+      categories: {
+        Row: {
+          id: string;
+          world_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          world_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["categories"]["Insert"]>;
         Relationships: [];
       };
     };

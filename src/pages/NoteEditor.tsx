@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createCategory, findCategoryByName, loadCategories, type CategoryItem } from "../lib/categories";
 import { getSupabaseClient } from "../lib/supabase";
 import type { WorldItem } from "./WorldList.tsx";
 import type { NoteItem } from "./WorldNotes.tsx";
@@ -13,17 +14,26 @@ type NoteEditorProps = {
 
 type SaveState = "saved" | "pending" | "error";
 
+type Draft = { title: string; content: string; categoryId: string | null };
+
 const AUTOSAVE_DELAY_MS = 800;
 
 export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
   const [title, setTitle] = useState(note?.title ?? "");
   const [content, setContent] = useState(note?.content ?? "");
+  const [categoryId, setCategoryId] = useState(note?.category_id ?? null);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   const noteId = useRef(note?.id ?? null);
-  const draft = useRef({ title, content });
+  const draft = useRef<Draft>({ title, content, categoryId });
+  // Set by Escape so the blur that follows discards the new category instead of creating it.
+  const cancelCategory = useRef(false);
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Saves run one after another so a new note is never inserted twice.
@@ -33,7 +43,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
     if (!dirty.current) return;
     dirty.current = false;
 
-    const { title, content } = draft.current;
+    const { title, content, categoryId } = draft.current;
     const supabase = getSupabaseClient();
 
     if (!noteId.current) {
@@ -41,7 +51,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
 
       const { data, error: insertError } = await supabase
         .from("notes")
-        .insert({ world_id: world.id, title, content })
+        .insert({ world_id: world.id, title, content, category_id: categoryId })
         .select("id")
         .single();
 
@@ -53,7 +63,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       return;
     }
 
-    const { error: updateError } = await supabase.from("notes").update({ title, content }).eq("id", noteId.current);
+    const { error: updateError } = await supabase.from("notes").update({ title, content, category_id: categoryId }).eq("id", noteId.current);
 
     if (updateError) {
       throw updateError;
@@ -81,15 +91,44 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
     return queue.current;
   };
 
-  const edit = (next: { title: string; content: string }) => {
+  const edit = (changes: Partial<Draft>) => {
+    const next = { ...draft.current, ...changes };
     setTitle(next.title);
     setContent(next.content);
+    setCategoryId(next.categoryId);
     draft.current = next;
     dirty.current = true;
     setSaveState("pending");
 
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(save, AUTOSAVE_DELAY_MS);
+  };
+
+  useEffect(() => {
+    loadCategories(world.id)
+      .then(setCategories)
+      .catch(err => setError(err instanceof Error ? err.message : "Erro ao carregar categorias."));
+  }, [world.id]);
+
+  // Picks an existing category with the same name instead of creating a duplicate.
+  const addCategory = async (name: string) => {
+    setAddingCategory(false);
+    setNewCategoryName("");
+    if (!name.trim()) return;
+
+    const existing = findCategoryByName(categories, name);
+    if (existing) {
+      edit({ categoryId: existing.id });
+      return;
+    }
+
+    try {
+      const created = await createCategory(world.id, name);
+      setCategories(current => [...current, created]);
+      edit({ categoryId: created.id });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar categoria.");
+    }
   };
 
   // Leaving the screen another way (e.g. the Android back button) still saves pending edits.
@@ -136,15 +175,15 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
   const statusText = error || (saveState === "pending" ? "Salvando..." : "Salvo");
 
   return (
-    <main className="notes notes--editor">
-      <header className="notes__header">
-        <button type="button" aria-label="Voltar" className="notes__icon-button" onClick={handleBack}>
+    <main
+      className="notes notes--editor"
+      style={{ "--world": world.accent_color ?? "#f5a7a1" } as React.CSSProperties}
+    >
+      <header className="notes__topbar">
+        <button type="button" aria-label="Voltar para as notas" className="binder-icon-button" onClick={handleBack}>
           ←
         </button>
-        <span className="notes__world-name">
-          <span aria-hidden="true">{world.icon ?? "✎"}</span>
-          {world.name}
-        </span>
+        <span className="notes__world-chip">{world.name}</span>
         <button
           type="button"
           className="notes__delete-button"
@@ -157,22 +196,77 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       </header>
 
       <section className="note-editor">
-        <input
+        {/* A textarea so long titles wrap; Enter moves on to the note instead of adding a line. */}
+        <textarea
           className="note-editor__title"
-          type="text"
+          rows={1}
           value={title}
-          onChange={event => edit({ title: event.target.value, content })}
+          onChange={event => edit({ title: event.target.value.replace(/\n/g, " ") })}
+          onKeyDown={event => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              contentRef.current?.focus();
+            }
+          }}
           placeholder="Título"
           maxLength={200}
           autoFocus={!note}
         />
-        <p className={`note-editor__status${saveState === "error" ? " notes__status--error" : ""}`} role="status">
+        <p className={`note-editor__status${saveState === "error" ? " note-editor__status--error" : ""}`} role="status">
           {statusText}
         </p>
+        <div className="note-editor__categories" role="group" aria-label="Categoria">
+          {categories.map(category => (
+            <button
+              key={category.id}
+              type="button"
+              className="category-chip"
+              aria-pressed={categoryId === category.id}
+              onClick={() => edit({ categoryId: categoryId === category.id ? null : category.id })}
+            >
+              {category.name}
+            </button>
+          ))}
+          {addingCategory ? (
+            <input
+              className="category-chip category-chip--input"
+              value={newCategoryName}
+              onChange={event => setNewCategoryName(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                } else if (event.key === "Escape") {
+                  cancelCategory.current = true;
+                  event.currentTarget.blur();
+                }
+              }}
+              onBlur={() => {
+                const name = cancelCategory.current ? "" : newCategoryName;
+                cancelCategory.current = false;
+                addCategory(name);
+              }}
+              placeholder="Nome da categoria"
+              aria-label="Nome da nova categoria"
+              maxLength={40}
+              enterKeyHint="done"
+              autoFocus
+            />
+          ) : (
+            <button
+              type="button"
+              className="category-chip category-chip--add"
+              onClick={() => setAddingCategory(true)}
+            >
+              <span aria-hidden="true">+</span> {categories.length ? "Categoria" : "Criar categoria"}
+            </button>
+          )}
+        </div>
         <textarea
+          ref={contentRef}
           className="note-editor__content"
           value={content}
-          onChange={event => edit({ title, content: event.target.value })}
+          onChange={event => edit({ content: event.target.value })}
           placeholder="Escreva sua nota..."
         />
       </section>

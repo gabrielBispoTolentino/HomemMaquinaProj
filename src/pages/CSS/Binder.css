@@ -1,0 +1,90 @@
+/* Shared look for the worlds menu and the notes screens: worlds are tabbed dividers in a binder. */
+/* Latin subset only (covers Portuguese), and only the styles used. Declared here instead of importing
+   the fontsource CSS, which pulls in every script subset. Bun inlines these as data: URLs (see font-src in index.html). */
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-700-italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Literata Variable";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("../../../node_modules/@fontsource-variable/literata/files/literata-latin-opsz-normal.woff2") format("woff2-variations");
+}
+
+:root {
+  --binder-slate: #1f2b35;
+  --binder-slate-deep: #16202a;
+  --binder-paper: #e8edf0;
+  --binder-paper-shade: #dbe2e7;
+  --binder-ink: #18222c;
+  --binder-muted: #71818e;
+  --binder-on-slate: #e6ebef;
+  --binder-on-slate-muted: #9fb0bd;
+
+  --binder-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --binder-text: "Literata Variable", Georgia, serif;
+
+  --binder-tab-height: 2.4rem;
+  --binder-tab-width: 5.25rem;
+}
+
+/* Every world color in the database is a light pastel, so ink text sits on it. */
+.binder-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  font-family: var(--binder-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.binder-icon-button {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--binder-on-slate);
+  font-size: 1.6rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.binder-icon-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.binder-button:focus-visible,
+.binder-icon-button:focus-visible {
+  outline: 3px solid var(--binder-paper);
+  outline-offset: 2px;
+}

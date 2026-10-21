@@ -123,17 +123,17 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
     <main className="world-list">
       <header className="world-list__header">
         <div>
-          <h1>Menu</h1>
+          <h1>Mundos</h1>
           {user && <span className="world-list__user">{user.name}</span>}
         </div>
         <div className="world-list__actions">
           {user && (
-            <button type="button" className="world-list__create-button" onClick={() => setIsCreateOpen(true)}>
+            <button type="button" className="binder-button world-list__create-button" onClick={() => setIsCreateOpen(true)}>
               <span aria-hidden="true">+</span>
               Criar mundo
             </button>
           )}
-          <button type="button" aria-label="Voltar" className="world-list__theme-toggle" onClick={onBack}>
+          <button type="button" aria-label="Voltar" className="binder-icon-button" onClick={onBack}>
             ←
           </button>
         </div>
@@ -144,21 +144,22 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       ) : error ? (
         <p className="world-list__status world-list__status--error">{error}</p>
       ) : worlds.length === 0 ? (
-        <p className="world-list__status">Nenhum mundo criado ainda.</p>
+        <p className="world-list__status">Nenhum mundo ainda. Crie o primeiro para começar a guardar suas notas.</p>
       ) : (
         <section className="world-list__list" aria-label="Lista de mundos">
-          {worlds.map(world => (
+          {worlds.map((world, index) => (
             <button
               key={world.id}
               type="button"
-              className="world-card"
-              style={{ background: world.accent_color ?? "#f5a7a1" }}
+              className="world-divider"
+              data-tab={index % 3}
+              style={{ "--world": world.accent_color ?? "#f5a7a1" } as React.CSSProperties}
               onClick={() => onOpenWorld(world)}
             >
-              <span className="world-card__icon" aria-hidden="true">
+              <span className="world-divider__tab" aria-hidden="true">
                 {world.icon ?? "✎"}
               </span>
-              <span className="world-card__name">{world.name}</span>
+              <span className="world-divider__name">{world.name}</span>
             </button>
           ))}
         </section>
@@ -175,7 +176,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
           >
             <div className="world-list__dialog-header">
               <h2 id="create-world-title">Novo mundo</h2>
-              <button type="button" className="world-list__dialog-close" onClick={closeCreateDialog} aria-label="Fechar">
+              <button type="button" className="binder-icon-button world-list__dialog-close" onClick={closeCreateDialog} aria-label="Fechar">
                 ×
               </button>
             </div>
@@ -205,7 +206,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
 
               {createError && <p className="world-list__status world-list__status--error">{createError}</p>}
 
-              <button type="submit" className="world-list__dialog-submit" disabled={creating}>
+              <button type="submit" className="binder-button world-list__dialog-submit" disabled={creating}>
                 {creating ? "Criando..." : "Criar mundo"}
               </button>
             </form>
