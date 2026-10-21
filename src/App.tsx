@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { useEffect, useState } from "react";
 import "./index.css";
 import Cadastrar from "./pages/Cadastrar.tsx";
 import Login from "./pages/Login.tsx";
@@ -16,6 +18,23 @@ type LoggedUser = {
 export function App() {
   const [screen, setScreen] = useState<Screen>("main");
   const [currentUser, setCurrentUser] = useState<LoggedUser | null>(null);
+
+  // Android hardware back button: return to the main screen, or exit from it.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listener = CapacitorApp.addListener("backButton", () => {
+      if (screen === "main") {
+        CapacitorApp.exitApp();
+      } else {
+        setScreen("main");
+      }
+    });
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [screen]);
 
   if (screen === "login") {
     return (

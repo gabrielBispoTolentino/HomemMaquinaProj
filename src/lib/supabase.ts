@@ -41,12 +41,27 @@ type Database = {
   };
 };
 
+// `bun run build:mobile` inlines these as literals, since the mobile WebView has no preload to set window.__ENV__.
+// In other browser builds `process` is undefined and this throws.
+function readInlinedEnv(): Record<string, string | undefined> {
+  try {
+    return {
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+    };
+  } catch {
+    return {};
+  }
+}
+
+const inlinedEnv = readInlinedEnv();
 const runtimeEnv = typeof Bun !== "undefined" ? Bun.env : {};
 const viteEnv = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 const processEnv = typeof process !== "undefined" ? process.env ?? {} : {};
 const windowEnv = typeof window !== "undefined" && (window as any).__ENV__ ? (window as any).__ENV__ : {};
 
 const env = {
+  ...inlinedEnv,
   ...processEnv,
   ...viteEnv,
   ...runtimeEnv,
