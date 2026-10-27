@@ -2,6 +2,20 @@
 
 Design directions distilled from the product mind map (*Archivist — Mapa Mental da arquitetura conceitual do produto*). Use these as the guiding principles when designing or building any screen or feature.
 
+## Audience: academic and creative (Público: acadêmico e criativo)
+
+Archivist serves two kinds of work equally, and features should support both:
+
+- **Academic**: scientific articles, research notes, theses, literature reviews.
+- **Creative**: book writing, worldbuilding, RPG campaigns.
+
+When designing a feature:
+
+- Prefer features that serve both audiences, such as interlinked articles, categories, custom fields, search and the relationship graph.
+- When a feature is specific to one audience, plan for the other side's counterpart too. Examples: citations, references and footnotes for academic work; character sheets, timelines and campaign/session notes for creative work.
+- Don't hard-code one audience's assumptions. The structural categories below (Factions & NPCs, Places & Gods, Quests & Arcs) are a creative/RPG preset; academic volumes need their own (e.g. Sources, Concepts, Methods, Findings). Categories stay user-defined.
+- Keep UI copy neutral enough for both. The archive vocabulary (volume, verbete, arquivado) fits both a research archive and a writer's compendium; avoid wording that only makes sense for fiction or only for research.
+
 ## Interface metaphor (Metáfora de Interface)
 
 The app should feel like the author's personal, private reference work, not a generic notes tool:
