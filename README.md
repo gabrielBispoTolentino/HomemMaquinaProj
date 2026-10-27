@@ -1,4 +1,4 @@
-# bun-react-tailwind-template
+# Archivist
 
 To install dependencies:
 

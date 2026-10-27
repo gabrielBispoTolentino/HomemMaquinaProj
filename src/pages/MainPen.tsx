@@ -19,10 +19,9 @@ export default function MainPen({ onEntrar, onGoToCadastro }: MainPenProps) {
         <div className="main-pen__overlay" />
 
         <div className="main-pen__content">
-          <div className="main-pen__title">
-            Bem
-            <br />
-            vindo.
+          <div className="main-pen__brand">
+            <h1 className="main-pen__title">Archivist</h1>
+            <p className="main-pen__tagline">O compêndio pessoal dos seus mundos</p>
           </div>
 
           <button type="button" onClick={onEntrar} className="main-pen__button">

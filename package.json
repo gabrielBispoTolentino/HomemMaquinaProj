@@ -1,5 +1,6 @@
 {
-  "name": "bun-react-template",
+  "name": "archivist",
+  "productName": "Archivist",
   "version": "0.1.0",
   "private": true,
   "type": "module",

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "bun-react-template",
+      "name": "archivist",
       "dependencies": {
         "@capacitor-community/sqlite": "8.1.1",
         "@capacitor/android": "^8.5.3",

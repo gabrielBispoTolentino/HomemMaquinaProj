@@ -8,6 +8,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    title: 'Archivist',
+    icon: path.join(__dirname, 'assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       additionalArguments: [`--archivist-db=${path.join(app.getPath('userData'), 'archivist.sqlite')}`],
