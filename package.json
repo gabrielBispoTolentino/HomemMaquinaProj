@@ -13,6 +13,7 @@
     "ios": "bun run build:mobile && cap open ios"
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "8.1.1",
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
@@ -24,6 +25,7 @@
     "dotenv": "^17.4.2",
     "react": "^19",
     "react-dom": "^19",
+    "sql.js": "1.14.2",
     "tailwindcss": "^4.1.11"
   },
   "devDependencies": {
@@ -31,6 +33,7 @@
     "@types/bun": "latest",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sql.js": "^1.4.11",
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3"
   }

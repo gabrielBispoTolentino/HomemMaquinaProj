@@ -9,6 +9,8 @@ type Database = {
         Update: Partial<{ name: string; email: string; password: string }>;
         Relationships: [];
       };
+      // worlds, notes and categories now live in the local database (db.ts); these
+      // tables are only read once per user, to copy old data over (supabaseImport.ts).
       worlds: {
         Row: {
           id: string;

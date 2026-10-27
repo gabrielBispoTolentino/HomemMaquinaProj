@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createCategory, findCategoryByName, loadCategories, type CategoryItem } from "../lib/categories";
-import { getSupabaseClient } from "../lib/supabase";
-import type { WorldItem } from "./WorldList.tsx";
-import type { NoteItem } from "./WorldNotes.tsx";
+import { createNote, deleteNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import type { WorldItem } from "../lib/worlds";
 import "./CSS/Notes.css";
 
 type NoteEditorProps = {
@@ -13,8 +12,6 @@ type NoteEditorProps = {
 };
 
 type SaveState = "saved" | "pending" | "error";
-
-type Draft = { title: string; content: string; categoryId: string | null };
 
 const AUTOSAVE_DELAY_MS = 800;
 
@@ -31,7 +28,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
 
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const noteId = useRef(note?.id ?? null);
-  const draft = useRef<Draft>({ title, content, categoryId });
+  const draft = useRef<NoteDraft>({ title, content, categoryId });
   // Set by Escape so the blur that follows discards the new category instead of creating it.
   const cancelCategory = useRef(false);
   const dirty = useRef(false);
@@ -43,31 +40,15 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
     if (!dirty.current) return;
     dirty.current = false;
 
-    const { title, content, categoryId } = draft.current;
-    const supabase = getSupabaseClient();
+    const current = draft.current;
 
     if (!noteId.current) {
-      if (!title.trim() && !content.trim()) return;
-
-      const { data, error: insertError } = await supabase
-        .from("notes")
-        .insert({ world_id: world.id, title, content, category_id: categoryId })
-        .select("id")
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      noteId.current = data.id;
+      if (!current.title.trim() && !current.content.trim()) return;
+      noteId.current = await createNote(world.id, current);
       return;
     }
 
-    const { error: updateError } = await supabase.from("notes").update({ title, content, category_id: categoryId }).eq("id", noteId.current);
-
-    if (updateError) {
-      throw updateError;
-    }
+    await updateNote(noteId.current, current);
   };
 
   const save = () => {
@@ -91,7 +72,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
     return queue.current;
   };
 
-  const edit = (changes: Partial<Draft>) => {
+  const edit = (changes: Partial<NoteDraft>) => {
     const next = { ...draft.current, ...changes };
     setTitle(next.title);
     setContent(next.content);
@@ -158,13 +139,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       dirty.current = false;
       await queue.current;
 
-      const supabase = getSupabaseClient();
-      const { error: deleteError } = await supabase.from("notes").delete().eq("id", noteId.current);
-
-      if (deleteError) {
-        throw deleteError;
-      }
-
+      await deleteNote(noteId.current);
       onBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao excluir nota.");

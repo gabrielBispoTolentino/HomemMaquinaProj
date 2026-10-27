@@ -1,39 +1,26 @@
-import { getSupabaseClient } from "./supabase";
+import { newId, now, queryAll, run } from "./db";
 
-// Categories are created by the user, one set per world (see supabase/categories.sql).
+// Categories are created by the user, one set per world (see the schema in db.ts).
 export type CategoryItem = {
   id: string;
   name: string;
 };
 
-export async function loadCategories(worldId: string): Promise<CategoryItem[]> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("id, name")
-    .eq("world_id", worldId)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
+export function loadCategories(worldId: string): Promise<CategoryItem[]> {
+  return queryAll<CategoryItem>("SELECT id, name FROM categories WHERE world_id = ? ORDER BY created_at ASC", [
+    worldId,
+  ]);
 }
 
 export async function createCategory(worldId: string, name: string): Promise<CategoryItem> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .insert({ world_id: worldId, name: name.trim() })
-    .select("id, name")
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+  const category = { id: newId(), name: name.trim() };
+  await run("INSERT INTO categories (id, world_id, name, created_at) VALUES (?, ?, ?, ?)", [
+    category.id,
+    worldId,
+    category.name,
+    now(),
+  ]);
+  return category;
 }
 
 // Matches the unique index on (world_id, lower(trim(name))).
@@ -43,20 +30,10 @@ export function findCategoryByName(categories: CategoryItem[], name: string) {
 }
 
 export async function renameCategory(id: string, name: string) {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.from("categories").update({ name: name.trim() }).eq("id", id);
-
-  if (error) {
-    throw error;
-  }
+  await run("UPDATE categories SET name = ? WHERE id = ?", [name.trim(), id]);
 }
 
 // The database clears notes.category_id for the notes that used it (on delete set null).
 export async function deleteCategory(id: string) {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.from("categories").delete().eq("id", id);
-
-  if (error) {
-    throw error;
-  }
+  await run("DELETE FROM categories WHERE id = ?", [id]);
 }

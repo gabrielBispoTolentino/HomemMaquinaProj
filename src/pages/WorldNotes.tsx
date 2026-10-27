@@ -1,17 +1,9 @@
 import { useEffect, useState } from "react";
 import { loadCategories, type CategoryItem } from "../lib/categories";
-import { getSupabaseClient } from "../lib/supabase";
+import { loadNotes, type NoteItem } from "../lib/notes";
+import type { WorldItem } from "../lib/worlds";
 import CategoryManager from "./CategoryManager.tsx";
-import type { WorldItem } from "./WorldList.tsx";
 import "./CSS/Notes.css";
-
-export type NoteItem = {
-  id: string;
-  title: string;
-  content: string;
-  category_id: string | null;
-  updated_at: string;
-};
 
 type WorldNotesProps = {
   world: WorldItem;
@@ -74,26 +66,13 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
     : `Nenhuma nota em ${categoryName(categoryId)} ainda.`;
 
   useEffect(() => {
-    const loadNotes = async () => {
+    const load = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const supabase = getSupabaseClient();
-        const [{ data, error: selectError }, worldCategories] = await Promise.all([
-          supabase
-            .from("notes")
-            .select("id, title, content, category_id, updated_at")
-            .eq("world_id", world.id)
-            .order("updated_at", { ascending: false }),
-          loadCategories(world.id),
-        ]);
-
-        if (selectError) {
-          throw selectError;
-        }
-
-        setNotes(data ?? []);
+        const [worldNotes, worldCategories] = await Promise.all([loadNotes(world.id), loadCategories(world.id)]);
+        setNotes(worldNotes);
         setCategories(worldCategories);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao carregar notas.";
@@ -103,7 +82,7 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
       }
     };
 
-    loadNotes();
+    load();
   }, [world.id]);
 
   return (

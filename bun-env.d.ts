@@ -8,6 +8,14 @@ declare module "*.svg" {
   export = path;
 }
 
+declare module "*.wasm" {
+  /**
+   * A path to the WebAssembly file (imported with `with { type: "file" }`)
+   */
+  const path: string;
+  export default path;
+}
+
 declare module "*.css" {
   const content: string;
   export default content;

@@ -10,6 +10,7 @@ function createWindow() {
     height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
+      additionalArguments: [`--archivist-db=${path.join(app.getPath('userData'), 'archivist.sqlite')}`],
       contextIsolation: false,
       nodeIntegration: true,
     },

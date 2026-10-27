@@ -6,8 +6,10 @@ import Cadastrar from "./pages/Cadastrar.tsx";
 import Login from "./pages/Login.tsx";
 import MainPen from "./pages/MainPen.tsx";
 import NoteEditor from "./pages/NoteEditor.tsx";
-import WorldList, { type WorldItem } from "./pages/WorldList.tsx";
-import WorldNotes, { type NoteItem } from "./pages/WorldNotes.tsx";
+import type { NoteItem } from "./lib/notes";
+import type { WorldItem } from "./lib/worlds";
+import WorldList from "./pages/WorldList.tsx";
+import WorldNotes from "./pages/WorldNotes.tsx";
 
 export type Screen = "main" | "login" | "cadastro" | "worlds" | "notes" | "note";
 

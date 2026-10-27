@@ -1,18 +1,11 @@
 import { useEffect, useState } from "react";
-import { getSupabaseClient } from "../lib/supabase";
+import { createWorld, loadWorlds, type WorldItem } from "../lib/worlds";
 import "./CSS/WorldList.css";
 
 type LoggedUser = {
   id: number;
   name: string;
   email: string;
-};
-
-export type WorldItem = {
-  id: string;
-  name: string;
-  accent_color?: string | null;
-  icon?: string | null;
 };
 
 type WorldListProps = {
@@ -39,23 +32,11 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       return;
     }
 
-    const loadWorlds = async () => {
+    const load = async () => {
       try {
         setLoading(true);
         setError("");
-
-        const supabase = getSupabaseClient();
-        const { data, error: selectError } = await supabase
-          .from("worlds")
-          .select("id, name, accent_color, icon")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (selectError) {
-          throw selectError;
-        }
-
-        setWorlds(data ?? []);
+        setWorlds(await loadWorlds(user.id));
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao carregar mundos.";
         setError(message);
@@ -64,7 +45,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       }
     };
 
-    loadWorlds();
+    load();
   }, [user]);
 
   const handleCreateWorld = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -85,22 +66,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       setCreating(true);
       setCreateError("");
 
-      const supabase = getSupabaseClient();
-      const { data, error: insertError } = await supabase
-        .from("worlds")
-        .insert({
-          user_id: user.id,
-          name,
-          description: worldDescription.trim() || null,
-        })
-        .select("id, name, accent_color, icon")
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      const createdWorld = data as WorldItem;
+      const createdWorld = await createWorld(user.id, name, worldDescription.trim() || null);
       setWorlds(currentWorlds => [createdWorld, ...currentWorlds]);
       setWorldName("");
       setWorldDescription("");
