@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadCategories, type CategoryItem } from "../lib/categories";
+import { categoryColor, loadCategories, type CategoryItem } from "../lib/categories";
 import { loadNotes, type NoteItem } from "../lib/notes";
 import type { WorldItem } from "../lib/worlds";
 import CategoryManager from "./CategoryManager.tsx";
@@ -11,11 +11,12 @@ type WorldNotesProps = {
   onOpenNote: (note: NoteItem | null) => void;
 };
 
-// "21 de out.", with the year only when it isn't the current one.
-function formatDate(value: string) {
+// The card's stamp: "21 out", with the year only when it isn't the current one.
+function stampDate(value: string) {
   const date = new Date(value);
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: sameYear ? undefined : "numeric" });
+  const month = date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  const year = date.getFullYear() === new Date().getFullYear() ? "" : ` ${date.getFullYear()}`;
+  return `${date.getDate()} ${month}${year}`;
 }
 
 // Case- and accent-insensitive, so "missao" finds "Missão".
@@ -41,7 +42,7 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
     const text = normalize(`${note.title} ${note.content} ${categoryName(note.category_id)}`);
     return terms.every(term => text.includes(term));
   });
-  const countText = notes.length === 1 ? "1 nota" : `${notes.length} notas`;
+  const countText = notes.length === 1 ? "1 verbete" : `${notes.length} verbetes`;
 
   const categoryNoteCounts: Record<string, number> = {};
   for (const note of notes) {
@@ -62,8 +63,8 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
   };
 
   const emptyFilterText = terms.length
-    ? `Nenhuma nota encontrada para “${query.trim()}”${categoryId ? ` em ${categoryName(categoryId)}` : ""}.`
-    : `Nenhuma nota em ${categoryName(categoryId)} ainda.`;
+    ? `Nenhum verbete encontrado para “${query.trim()}”${categoryId ? ` em ${categoryName(categoryId)}` : ""}.`
+    : `Nenhum verbete em ${categoryName(categoryId)} ainda.`;
 
   useEffect(() => {
     const load = async () => {
@@ -75,7 +76,7 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
         setNotes(worldNotes);
         setCategories(worldCategories);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Erro ao carregar notas.";
+        const message = err instanceof Error ? err.message : "Erro ao carregar verbetes.";
         setError(message);
       } finally {
         setLoading(false);
@@ -88,7 +89,7 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
   return (
     <main className="notes" style={{ "--world": accent } as React.CSSProperties}>
       <header className="notes__topbar">
-        <button type="button" aria-label="Voltar para mundos" className="binder-icon-button" onClick={onBack}>
+        <button type="button" aria-label="Voltar para os volumes" className="binder-icon-button" onClick={onBack}>
           ←
         </button>
         {notes.length > 0 && (
@@ -100,8 +101,8 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
             onKeyDown={event => {
               if (event.key === "Escape") setQuery("");
             }}
-            placeholder="Buscar notas"
-            aria-label="Buscar notas deste mundo"
+            placeholder="Buscar no volume"
+            aria-label="Buscar verbetes deste volume"
             enterKeyHint="search"
           />
         )}
@@ -122,12 +123,12 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
 
         <div className="notes__sheet">
           {loading ? (
-            <p className="notes__status">Carregando notas...</p>
+            <p className="notes__status">Carregando verbetes...</p>
           ) : error ? (
             <p className="notes__status notes__status--error">{error}</p>
           ) : notes.length === 0 ? (
             <p className="notes__status">
-              Nenhuma nota ainda. Registre aqui os lugares, personagens e sessões deste mundo.
+              Esta gaveta ainda está vazia. Registre aqui os lugares, personagens e sessões deste volume.
             </p>
           ) : (
             <>
@@ -154,6 +155,7 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
                       key={category.id}
                       type="button"
                       className="category-chip"
+                      style={{ "--category": categoryColor(categories, category.id) } as React.CSSProperties}
                       aria-pressed={categoryId === category.id}
                       onClick={() => setCategoryId(categoryId === category.id ? null : category.id)}
                     >
@@ -172,22 +174,32 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
               {visibleNotes.length === 0 ? (
                 <p className="notes__status">{emptyFilterText}</p>
               ) : (
-                <ul className="notes__list" aria-label="Notas">
+                <ul className="notes__list" aria-label="Verbetes">
                   {visibleNotes.map(note => (
                     <li key={note.id}>
-                      <button type="button" className="note-entry" onClick={() => onOpenNote(note)}>
-                        <span className="note-entry__head">
-                          <span className={`note-entry__title${note.title.trim() ? "" : " note-entry__title--untitled"}`}>
+                      {/* An index card; its category is the tab on top. */}
+                      <button
+                        type="button"
+                        className="note-card"
+                        style={
+                          note.category_id
+                            ? ({ "--category": categoryColor(categories, note.category_id) } as React.CSSProperties)
+                            : undefined
+                        }
+                        onClick={() => onOpenNote(note)}
+                      >
+                        {categoryName(note.category_id) && (
+                          <span className="note-card__tab">{categoryName(note.category_id)}</span>
+                        )}
+                        <span className="note-card__head">
+                          <span className={`note-card__title${note.title.trim() ? "" : " note-card__title--untitled"}`}>
                             {note.title.trim() || "Sem título"}
                           </span>
-                          <time className="note-entry__date" dateTime={note.updated_at}>
-                            {formatDate(note.updated_at)}
+                          <time className="note-card__stamp" dateTime={note.updated_at}>
+                            Arquivado · {stampDate(note.updated_at)}
                           </time>
                         </span>
-                        {note.content.trim() && <span className="note-entry__preview">{note.content.trim()}</span>}
-                        {categoryName(note.category_id) && (
-                          <span className="note-entry__category">{categoryName(note.category_id)}</span>
-                        )}
+                        {note.content.trim() && <span className="note-card__preview">{note.content.trim()}</span>}
                       </button>
                     </li>
                   ))}
@@ -201,7 +213,7 @@ export default function WorldNotes({ world, onBack, onOpenNote }: WorldNotesProp
       <div className="notes__new">
         <button type="button" className="binder-button notes__new-button" onClick={() => onOpenNote(null)}>
           <span aria-hidden="true">+</span>
-          Nova nota
+          Novo verbete
         </button>
       </div>
     </main>

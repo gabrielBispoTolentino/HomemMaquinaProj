@@ -28,7 +28,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
     if (!user) {
       setWorlds([]);
       setLoading(false);
-      setError("Faça login para ver seus mundos.");
+      setError("Faça login para ver seus volumes.");
       return;
     }
 
@@ -38,7 +38,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
         setError("");
         setWorlds(await loadWorlds(user.id));
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Erro ao carregar mundos.";
+        const message = err instanceof Error ? err.message : "Erro ao carregar volumes.";
         setError(message);
       } finally {
         setLoading(false);
@@ -52,13 +52,13 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
     event.preventDefault();
 
     if (!user) {
-      setCreateError("Faça login para criar um mundo.");
+      setCreateError("Faça login para abrir um volume.");
       return;
     }
 
     const name = worldName.trim();
     if (!name) {
-      setCreateError("Digite um nome para o mundo.");
+      setCreateError("Dê um nome ao volume.");
       return;
     }
 
@@ -72,7 +72,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       setWorldDescription("");
       setIsCreateOpen(false);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao criar mundo.";
+      const message = err instanceof Error ? err.message : "Erro ao criar volume.";
       setCreateError(message);
     } finally {
       setCreating(false);
@@ -89,14 +89,14 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
     <main className="world-list">
       <header className="world-list__header">
         <div>
-          <h1>Mundos</h1>
+          <h1>Volumes</h1>
           {user && <span className="world-list__user">{user.name}</span>}
         </div>
         <div className="world-list__actions">
           {user && (
             <button type="button" className="binder-button world-list__create-button" onClick={() => setIsCreateOpen(true)}>
               <span aria-hidden="true">+</span>
-              Criar mundo
+              Novo volume
             </button>
           )}
           <button type="button" aria-label="Voltar" className="binder-icon-button" onClick={onBack}>
@@ -106,13 +106,13 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       </header>
 
       {loading ? (
-        <p className="world-list__status">Carregando mundos...</p>
+        <p className="world-list__status">Carregando volumes...</p>
       ) : error ? (
         <p className="world-list__status world-list__status--error">{error}</p>
       ) : worlds.length === 0 ? (
-        <p className="world-list__status">Nenhum mundo ainda. Crie o primeiro para começar a guardar suas notas.</p>
+        <p className="world-list__status">A estante ainda está vazia. Abra o primeiro volume para começar o seu arquivo.</p>
       ) : (
-        <section className="world-list__list" aria-label="Lista de mundos">
+        <section className="world-list__list" aria-label="Volumes">
           {worlds.map((world, index) => (
             <button
               key={world.id}
@@ -141,7 +141,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
             onMouseDown={event => event.stopPropagation()}
           >
             <div className="world-list__dialog-header">
-              <h2 id="create-world-title">Novo mundo</h2>
+              <h2 id="create-world-title">Novo volume</h2>
               <button type="button" className="binder-icon-button world-list__dialog-close" onClick={closeCreateDialog} aria-label="Fechar">
                 ×
               </button>
@@ -164,7 +164,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
                 <textarea
                   value={worldDescription}
                   onChange={event => setWorldDescription(event.target.value)}
-                  placeholder="Conte um pouco sobre este mundo"
+                  placeholder="Do que trata este volume?"
                   maxLength={500}
                   rows={3}
                 />
@@ -173,7 +173,7 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
               {createError && <p className="world-list__status world-list__status--error">{createError}</p>}
 
               <button type="submit" className="binder-button world-list__dialog-submit" disabled={creating}>
-                {creating ? "Criando..." : "Criar mundo"}
+                {creating ? "Criando..." : "Criar volume"}
               </button>
             </form>
           </section>

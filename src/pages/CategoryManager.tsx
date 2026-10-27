@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
-import { deleteCategory, findCategoryByName, renameCategory, type CategoryItem } from "../lib/categories";
+import { categoryColor, deleteCategory, findCategoryByName, renameCategory, type CategoryItem } from "../lib/categories";
 
 type CategoryManagerProps = {
   categories: CategoryItem[];
-  // How many of the world's notes use each category, shown in each row and in the delete warning.
+  // How many of the volume's notes use each category, shown in each row and in the delete warning.
   noteCounts: Record<string, number>;
   onRenamed: (category: CategoryItem) => void;
   onDeleted: (id: string) => void;
@@ -12,6 +12,7 @@ type CategoryManagerProps = {
 
 type CategoryRowProps = {
   category: CategoryItem;
+  color: string;
   count: number;
   deleting: boolean;
   // Resolves to false when the name was rejected, so the row shows the saved name again.
@@ -20,10 +21,10 @@ type CategoryRowProps = {
 };
 
 function noteCountText(count: number) {
-  return count === 1 ? "1 nota" : `${count} notas`;
+  return count === 1 ? "1 verbete" : `${count} verbetes`;
 }
 
-function CategoryRow({ category, count, deleting, onRename, onDelete }: CategoryRowProps) {
+function CategoryRow({ category, color, count, deleting, onRename, onDelete }: CategoryRowProps) {
   const [name, setName] = useState(category.name);
   // Set by Escape so the blur that follows restores the name instead of saving it.
   const cancel = useRef(false);
@@ -40,7 +41,8 @@ function CategoryRow({ category, count, deleting, onRename, onDelete }: Category
   };
 
   return (
-    <li className="category-row">
+    <li className="category-row" style={{ "--category": color } as React.CSSProperties}>
+      <span className="category-row__tab" aria-hidden="true" />
       <input
         className="category-row__name"
         value={name}
@@ -107,7 +109,7 @@ export default function CategoryManager({ categories, noteCounts, onRenamed, onD
 
   const remove = async (category: CategoryItem) => {
     const count = noteCounts[category.id] ?? 0;
-    const warning = count ? ` ${count === 1 ? "1 nota ficará" : `${count} notas ficarão`} sem categoria.` : "";
+    const warning = count ? ` ${count === 1 ? "1 verbete ficará" : `${count} verbetes ficarão`} sem categoria.` : "";
     if (!window.confirm(`Excluir a categoria “${category.name}”?${warning}`)) return;
 
     try {
@@ -126,7 +128,7 @@ export default function CategoryManager({ categories, noteCounts, onRenamed, onD
     <div className="category-manager">
       <div className="category-manager__head">
         <h2 className="category-manager__title">Categorias</h2>
-        <button type="button" className="category-chip" onClick={onClose}>
+        <button type="button" className="category-manager__done" onClick={onClose}>
           Concluído
         </button>
       </div>
@@ -135,6 +137,7 @@ export default function CategoryManager({ categories, noteCounts, onRenamed, onD
           <CategoryRow
             key={category.id}
             category={category}
+            color={categoryColor(categories, category.id)}
             count={noteCounts[category.id] ?? 0}
             deleting={deletingId === category.id}
             onRename={name => rename(category, name)}

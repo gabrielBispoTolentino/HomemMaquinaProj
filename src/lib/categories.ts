@@ -23,6 +23,14 @@ export async function createCategory(worldId: string, name: string): Promise<Cat
   return category;
 }
 
+// Categories have no stored color; each takes the next pastel in creation order, so a volume's first six never share one.
+const CATEGORY_COLORS = ["#c9b6e4", "#a8d5c2", "#f3d38b", "#a9c7e8", "#f2b98f", "#f5a7a1"];
+
+export function categoryColor(categories: CategoryItem[], id: string) {
+  const index = Math.max(0, categories.findIndex(category => category.id === id));
+  return CATEGORY_COLORS[index % CATEGORY_COLORS.length]!;
+}
+
 // Matches the unique index on (world_id, lower(trim(name))).
 export function findCategoryByName(categories: CategoryItem[], name: string) {
   const key = name.trim().toLowerCase();

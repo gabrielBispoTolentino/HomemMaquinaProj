@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createCategory, findCategoryByName, loadCategories, type CategoryItem } from "../lib/categories";
+import { categoryColor, createCategory, findCategoryByName, loadCategories, type CategoryItem } from "../lib/categories";
 import { createNote, deleteNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
 import type { WorldItem } from "../lib/worlds";
 import "./CSS/Notes.css";
@@ -15,6 +15,18 @@ type SaveState = "saved" | "pending" | "error";
 
 const AUTOSAVE_DELAY_MS = 800;
 
+// "21 de out. de 2026".
+function registerDate(value: string) {
+  return new Date(value).toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// The note's history, like the entry line in a register. A revision on the day it was registered isn't worth a mention.
+function registerText(createdAt: string, updatedAt: string) {
+  const registered = `Registrado em ${registerDate(createdAt)}`;
+  const sameDay = new Date(createdAt).toDateString() === new Date(updatedAt).toDateString();
+  return sameDay ? registered : `${registered} · Revisado em ${registerDate(updatedAt)}`;
+}
+
 export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
   const [title, setTitle] = useState(note?.title ?? "");
   const [content, setContent] = useState(note?.content ?? "");
@@ -25,6 +37,9 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  // Both null until a new note is first saved.
+  const [createdAt, setCreatedAt] = useState(note?.created_at ?? null);
+  const [updatedAt, setUpdatedAt] = useState(note?.updated_at ?? null);
 
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const noteId = useRef(note?.id ?? null);
@@ -44,11 +59,14 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
 
     if (!noteId.current) {
       if (!current.title.trim() && !current.content.trim()) return;
-      noteId.current = await createNote(world.id, current);
+      const created = await createNote(world.id, current);
+      noteId.current = created.id;
+      setCreatedAt(created.created_at);
+      setUpdatedAt(created.created_at);
       return;
     }
 
-    await updateNote(noteId.current, current);
+    setUpdatedAt(await updateNote(noteId.current, current));
   };
 
   const save = () => {
@@ -66,7 +84,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       .catch(err => {
         dirty.current = true;
         setSaveState("error");
-        setError(err instanceof Error ? err.message : "Erro ao salvar nota.");
+        setError(err instanceof Error ? err.message : "Erro ao salvar verbete.");
       });
 
     return queue.current;
@@ -131,7 +149,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       return;
     }
 
-    if (!window.confirm("Excluir esta nota?")) return;
+    if (!window.confirm("Excluir este verbete?")) return;
 
     try {
       setDeleting(true);
@@ -142,12 +160,12 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       await deleteNote(noteId.current);
       onBack();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir nota.");
+      setError(err instanceof Error ? err.message : "Erro ao excluir verbete.");
       setDeleting(false);
     }
   };
 
-  const statusText = error || (saveState === "pending" ? "Salvando..." : "Salvo");
+  const statusText = error || (saveState === "pending" ? "Arquivando..." : "Arquivado");
 
   return (
     <main
@@ -155,7 +173,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       style={{ "--world": world.accent_color ?? "#f5a7a1" } as React.CSSProperties}
     >
       <header className="notes__topbar">
-        <button type="button" aria-label="Voltar para as notas" className="binder-icon-button" onClick={handleBack}>
+        <button type="button" aria-label="Voltar ao volume" className="binder-icon-button" onClick={handleBack}>
           ←
         </button>
         <span className="notes__world-chip">{world.name}</span>
@@ -164,7 +182,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
           className="notes__delete-button"
           onClick={handleDelete}
           disabled={deleting}
-          aria-label="Excluir nota"
+          aria-label="Excluir verbete"
         >
           Excluir
         </button>
@@ -196,6 +214,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
               key={category.id}
               type="button"
               className="category-chip"
+              style={{ "--category": categoryColor(categories, category.id) } as React.CSSProperties}
               aria-pressed={categoryId === category.id}
               onClick={() => edit({ categoryId: categoryId === category.id ? null : category.id })}
             >
@@ -242,8 +261,9 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
           className="note-editor__content"
           value={content}
           onChange={event => edit({ content: event.target.value })}
-          placeholder="Escreva sua nota..."
+          placeholder="Escreva o verbete..."
         />
+        {createdAt && updatedAt && <p className="note-editor__register">{registerText(createdAt, updatedAt)}</p>}
       </section>
     </main>
   );

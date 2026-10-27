@@ -105,14 +105,14 @@
   color: #a3322a;
 }
 
-/* Category chips, shared by the list filter and the editor. Ink on paper; the selected one takes the world's color.
-   Categories are created by the user in the editor. */
+/* Category tabs, shared by the list filter and the editor. Each category has its own pastel (--category, see
+   categoryColor); "Todas" falls back to the world's color. They sit on a ruled line, like index tabs in a drawer. */
 .category-chip {
   flex: none;
-  border: 1.5px solid #b9c5ce;
-  border-radius: 999px;
-  padding: 0.4rem 0.8rem;
-  background: transparent;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  padding: 0.45rem 0.8rem 0.4rem;
+  background: color-mix(in srgb, var(--category, var(--world)) 40%, transparent);
   color: var(--binder-ink);
   font-family: var(--binder-display);
   font-size: 1.05rem;
@@ -122,22 +122,30 @@
 }
 
 .category-chip:hover {
-  background: var(--binder-paper-shade);
+  background: color-mix(in srgb, var(--category, var(--world)) 65%, transparent);
 }
 
+/* The selected tab stands taller than the rest. */
 .category-chip[aria-pressed="true"] {
-  border-color: var(--world);
-  background: var(--world);
+  padding-top: 0.65rem;
+  background: var(--category, var(--world));
   font-weight: 600;
 }
 
 .category-chip--add {
-  border-style: dashed;
+  border: 1.5px dashed #b9c5ce;
+  border-bottom: 0;
+  background: transparent;
   color: var(--binder-muted);
+}
+
+.category-chip--add:hover {
+  background: var(--binder-paper-shade);
 }
 
 .category-chip--input {
   width: 11rem;
+  background: #fff;
   cursor: text;
 }
 
@@ -147,7 +155,7 @@
 
 .category-chip--input:focus {
   outline: none;
-  border-color: var(--world);
+  box-shadow: inset 0 -3px 0 var(--world);
 }
 
 .category-chip:focus-visible {
@@ -158,11 +166,12 @@
 /* Scrolls sideways on narrow phones instead of wrapping into a second row. */
 .notes__filters {
   display: flex;
-  gap: 0.5rem;
+  align-items: flex-end;
+  gap: 0.35rem;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 1rem 1.25rem 0.75rem;
-  border-bottom: 1px solid #cdd6dc;
+  padding: 1rem 1.25rem 0;
+  border-bottom: 2px solid #cdd6dc;
 }
 
 /* Takes the filter row's place while open. */
@@ -177,6 +186,29 @@
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 0.5rem;
+}
+
+.category-manager__done {
+  flex: none;
+  border: 1.5px solid #b9c5ce;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  background: transparent;
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.category-manager__done:hover {
+  background: var(--binder-paper-shade);
+}
+
+.category-manager__done:focus-visible {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 2px;
 }
 
 .category-manager__title {
@@ -198,6 +230,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.35rem 0;
+}
+
+.category-row__tab {
+  flex: none;
+  width: 1rem;
+  height: 1.15rem;
+  border-radius: 4px 4px 0 0;
+  background: var(--category);
 }
 
 .category-row__name {
@@ -261,50 +301,71 @@
   color: #a3322a;
 }
 
+/* Index cards in the drawer. The gap leaves room for each card's category tab. */
 .notes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
   margin: 0;
-  padding: 0;
+  padding: 1.75rem 1rem 1.25rem;
   list-style: none;
 }
 
-.notes__list li + li {
-  border-top: 1px solid #cdd6dc;
-}
-
-.note-entry {
+.note-card {
+  position: relative;
   width: 100%;
   border: 0;
+  border-radius: 4px;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 1rem 1.25rem 1.1rem;
-  background: transparent;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem 0.9rem;
+  background: #fafbfb;
   color: var(--binder-ink);
   text-align: left;
+  box-shadow:
+    0 1px 2px rgba(16, 26, 34, 0.12),
+    0 6px 14px rgba(16, 26, 34, 0.08);
   cursor: pointer;
 }
 
-.notes__list li:last-child .note-entry {
-  border-radius: 0 0 18px 18px;
+.note-card:hover {
+  background: #fff;
 }
 
-.note-entry:hover {
-  background: var(--binder-paper-shade);
-}
-
-.note-entry:focus-visible {
+.note-card:focus-visible {
   outline: 3px solid var(--binder-slate);
-  outline-offset: -3px;
+  outline-offset: 2px;
 }
 
-.note-entry__head {
+.note-card__tab {
+  position: absolute;
+  bottom: 100%;
+  right: 0.9rem;
+  max-width: 60%;
+  border-radius: 7px 7px 0 0;
+  padding: 0.3rem 0.65rem 0.25rem;
+  background: var(--category);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The heading line of an index card, ruled in the world's color. */
+.note-card__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 2px solid var(--world);
 }
 
-.note-entry__title {
+.note-card__title {
   min-width: 0;
   font-family: var(--binder-display);
   font-size: 1.45rem;
@@ -315,46 +376,46 @@
   white-space: nowrap;
 }
 
-.note-entry__title--untitled {
+.note-card__title--untitled {
   font-style: italic;
   font-weight: 700;
   color: var(--binder-muted);
 }
 
-.note-entry__date {
+/* A rubber stamp in blue-gray ink. */
+.note-card__stamp {
   flex: none;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  padding: 0.2rem 0.4rem 0.15rem;
   font-family: var(--binder-display);
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--binder-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #5b7182;
+  transform: rotate(-2deg);
 }
 
-.note-entry__preview {
+/* Ruled lines under the text, one per line of the preview. */
+.note-card__preview {
+  --rule: 1.6rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: 0.95rem;
-  line-height: 1.55;
+  line-height: var(--rule);
   color: #4a5966;
   white-space: pre-line;
-}
-
-.note-entry__category {
-  font-family: var(--binder-display);
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--binder-muted);
-}
-
-.note-entry__category::before {
-  content: "";
-  display: inline-block;
-  width: 0.55rem;
-  height: 0.55rem;
-  margin-right: 0.4rem;
-  border-radius: 50%;
-  background: var(--world);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--rule) - 1px),
+    #d7e1e7 calc(var(--rule) - 1px),
+    #d7e1e7 var(--rule)
+  );
 }
 
 /* Stays within thumb reach while the list scrolls. */
@@ -491,9 +552,12 @@
 .note-editor__categories {
   flex: none;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: flex-end;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
   margin: 0 0 1.1rem;
+  border-bottom: 2px solid #cdd6dc;
 }
 
 .note-editor__content {
@@ -507,6 +571,19 @@
   line-height: 1.75;
   color: var(--binder-ink);
   resize: none;
+}
+
+/* The note's history, at the foot of the page. */
+.note-editor__register {
+  flex: none;
+  margin: 0.75rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #b9c5ce;
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--binder-muted);
 }
 
 .note-editor__title::placeholder,
