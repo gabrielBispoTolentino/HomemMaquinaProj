@@ -49,12 +49,23 @@ const SCHEMA = `
   );
   CREATE UNIQUE INDEX IF NOT EXISTS categories_world_name_idx ON categories (world_id, lower(trim(name)));
 
+  -- Folders within a volume, separate from categories. collapsed is how the listing last showed it.
+  CREATE TABLE IF NOT EXISTS subgroups (
+    id TEXT PRIMARY KEY,
+    world_id TEXT NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    collapsed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS subgroups_world_name_idx ON subgroups (world_id, lower(trim(name)));
+
   CREATE TABLE IF NOT EXISTS notes (
     id TEXT PRIMARY KEY,
     world_id TEXT NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
     title TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL DEFAULT '',
     category_id TEXT REFERENCES categories (id) ON DELETE SET NULL,
+    subgroup_id TEXT REFERENCES subgroups (id) ON DELETE SET NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -66,6 +77,21 @@ const SCHEMA = `
     imported_at TEXT NOT NULL
   );
 `;
+
+// Columns added after their table was first released. CREATE TABLE IF NOT EXISTS leaves existing tables alone,
+// so databases created before then get them here.
+const ADDED_COLUMNS = [
+  { table: "notes", column: "subgroup_id", definition: "TEXT REFERENCES subgroups (id) ON DELETE SET NULL" },
+];
+
+async function addMissingColumns(driver: Driver) {
+  for (const { table, column, definition } of ADDED_COLUMNS) {
+    const columns = await driver.all(`PRAGMA table_info(${table})`, []);
+    if (!columns.some(info => info.name === column)) {
+      await driver.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+  }
+}
 
 async function openNative(): Promise<Driver> {
   const { CapacitorSQLite, SQLiteConnection } = await import("@capacitor-community/sqlite");
@@ -181,6 +207,7 @@ async function openDriver(): Promise<Driver> {
 
   await driver.exec("PRAGMA foreign_keys = ON;");
   await driver.exec(SCHEMA);
+  await addMissingColumns(driver);
   return driver;
 }
 

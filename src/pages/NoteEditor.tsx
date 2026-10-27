@@ -1,14 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import { categoryColor, createCategory, findCategoryByName, loadCategories, type CategoryItem } from "../lib/categories";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { categoryColor, createCategory, findCategoryByName, type CategoryItem } from "../lib/categories";
 import { createNote, deleteNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import type { SubgroupItem } from "../lib/subgroups";
 import type { WorldItem } from "../lib/worlds";
 import "./CSS/Notes.css";
 
 type NoteEditorProps = {
+  // Shown before the note's path, e.g. the button that brings back a hidden sidebar.
+  headStart?: ReactNode;
   world: WorldItem;
   // null starts a new note, which is only inserted once it has some text.
   note: NoteItem | null;
-  onBack: () => void;
+  // Where a new note goes, e.g. when it was started from a subgroup's "+".
+  initialSubgroupId: string | null;
+  categories: CategoryItem[];
+  subgroups: SubgroupItem[];
+  onCategoryCreated: (category: CategoryItem) => void;
+  // Called after every save, so the listing shows the new title, subgroup and category.
+  onSaved: (note: NoteItem) => void;
+  onDeleted: (id: string) => void;
+  onClose: () => void;
 };
 
 type SaveState = "saved" | "pending" | "error";
@@ -27,11 +38,12 @@ function registerText(createdAt: string, updatedAt: string) {
   return sameDay ? registered : `${registered} · Revisado em ${registerDate(updatedAt)}`;
 }
 
-export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
+export default function NoteEditor(props: NoteEditorProps) {
+  const { world, note, categories, subgroups } = props;
   const [title, setTitle] = useState(note?.title ?? "");
   const [content, setContent] = useState(note?.content ?? "");
   const [categoryId, setCategoryId] = useState(note?.category_id ?? null);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [subgroupId, setSubgroupId] = useState(note ? note.subgroup_id : props.initialSubgroupId);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -43,7 +55,8 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
 
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const noteId = useRef(note?.id ?? null);
-  const draft = useRef<NoteDraft>({ title, content, categoryId });
+  const createdAtRef = useRef(createdAt);
+  const draft = useRef<NoteDraft>({ title, content, categoryId, subgroupId });
   // Set by Escape so the blur that follows discards the new category instead of creating it.
   const cancelCategory = useRef(false);
   const dirty = useRef(false);
@@ -56,17 +69,27 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
     dirty.current = false;
 
     const current = draft.current;
+    const fields = {
+      title: current.title,
+      content: current.content,
+      category_id: current.categoryId,
+      subgroup_id: current.subgroupId,
+    };
 
     if (!noteId.current) {
       if (!current.title.trim() && !current.content.trim()) return;
       const created = await createNote(world.id, current);
       noteId.current = created.id;
+      createdAtRef.current = created.created_at;
       setCreatedAt(created.created_at);
       setUpdatedAt(created.created_at);
+      props.onSaved({ id: created.id, ...fields, created_at: created.created_at, updated_at: created.created_at });
       return;
     }
 
-    setUpdatedAt(await updateNote(noteId.current, current));
+    const updated = await updateNote(noteId.current, current);
+    setUpdatedAt(updated);
+    props.onSaved({ id: noteId.current, ...fields, created_at: createdAtRef.current ?? updated, updated_at: updated });
   };
 
   const save = () => {
@@ -95,6 +118,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
     setTitle(next.title);
     setContent(next.content);
     setCategoryId(next.categoryId);
+    setSubgroupId(next.subgroupId);
     draft.current = next;
     dirty.current = true;
     setSaveState("pending");
@@ -103,11 +127,22 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
     timer.current = setTimeout(save, AUTOSAVE_DELAY_MS);
   };
 
+  // A category or subgroup deleted from the sidebar while this note is open: the database already cleared it
+  // from the note, so drop it from the draft too, or the next save would point at a row that no longer exists.
   useEffect(() => {
-    loadCategories(world.id)
-      .then(setCategories)
-      .catch(err => setError(err instanceof Error ? err.message : "Erro ao carregar categorias."));
-  }, [world.id]);
+    const { categoryId: draftCategory, subgroupId: draftSubgroup } = draft.current;
+    const categoryGone = draftCategory !== null && !categories.some(category => category.id === draftCategory);
+    const subgroupGone = draftSubgroup !== null && !subgroups.some(subgroup => subgroup.id === draftSubgroup);
+    if (!categoryGone && !subgroupGone) return;
+
+    draft.current = {
+      ...draft.current,
+      categoryId: categoryGone ? null : draftCategory,
+      subgroupId: subgroupGone ? null : draftSubgroup,
+    };
+    setCategoryId(draft.current.categoryId);
+    setSubgroupId(draft.current.subgroupId);
+  }, [categories, subgroups]);
 
   // Picks an existing category with the same name instead of creating a duplicate.
   const addCategory = async (name: string) => {
@@ -123,29 +158,24 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
 
     try {
       const created = await createCategory(world.id, name);
-      setCategories(current => [...current, created]);
+      props.onCategoryCreated(created);
       edit({ categoryId: created.id });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar categoria.");
     }
   };
 
-  // Leaving the screen another way (e.g. the Android back button) still saves pending edits.
+  // Opening another note, or leaving another way (e.g. the Android back button), still saves pending edits.
   useEffect(() => {
     return () => {
       if (dirty.current) save();
     };
   }, []);
 
-  const handleBack = async () => {
-    await save();
-    if (!dirty.current) onBack();
-  };
-
   const handleDelete = async () => {
     if (!noteId.current) {
       dirty.current = false;
-      onBack();
+      props.onClose();
       return;
     }
 
@@ -158,7 +188,7 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
       await queue.current;
 
       await deleteNote(noteId.current);
-      onBack();
+      props.onDeleted(noteId.current);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao excluir verbete.");
       setDeleting(false);
@@ -168,15 +198,29 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
   const statusText = error || (saveState === "pending" ? "Arquivando..." : "Arquivado");
 
   return (
-    <main
-      className="notes notes--editor"
-      style={{ "--world": world.accent_color ?? "#f5a7a1" } as React.CSSProperties}
-    >
-      <header className="notes__topbar">
-        <button type="button" aria-label="Voltar ao volume" className="binder-icon-button" onClick={handleBack}>
-          ←
-        </button>
-        <span className="notes__world-chip">{world.name}</span>
+    <article className="note-pane">
+      <header className="note-pane__head">
+        {props.headStart}
+        {/* Where the note is filed: Subgrupo / Título. The subgroup is picked here. */}
+        <div className="note-pane__path">
+          <select
+            className="note-pane__subgroup"
+            value={subgroupId ?? ""}
+            onChange={event => edit({ subgroupId: event.target.value || null })}
+            aria-label="Subgrupo"
+          >
+            <option value="">Sem subgrupo</option>
+            {subgroups.map(subgroup => (
+              <option key={subgroup.id} value={subgroup.id}>
+                {subgroup.name}
+              </option>
+            ))}
+          </select>
+          <span className="note-pane__separator" aria-hidden="true">
+            /
+          </span>
+          <span className="note-pane__name">{title.trim() || "Sem título"}</span>
+        </div>
         <button
           type="button"
           className="notes__delete-button"
@@ -265,6 +309,6 @@ export default function NoteEditor({ world, note, onBack }: NoteEditorProps) {
         />
         {createdAt && updatedAt && <p className="note-editor__register">{registerText(createdAt, updatedAt)}</p>}
       </section>
-    </main>
+    </article>
   );
 }

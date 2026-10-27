@@ -1,17 +1,15 @@
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./index.css";
 import Cadastrar from "./pages/Cadastrar.tsx";
 import Login from "./pages/Login.tsx";
 import MainPen from "./pages/MainPen.tsx";
-import NoteEditor from "./pages/NoteEditor.tsx";
-import type { NoteItem } from "./lib/notes";
 import type { WorldItem } from "./lib/worlds";
 import WorldList from "./pages/WorldList.tsx";
 import WorldNotes from "./pages/WorldNotes.tsx";
 
-export type Screen = "main" | "login" | "cadastro" | "worlds" | "notes" | "note";
+export type Screen = "main" | "login" | "cadastro" | "worlds" | "notes";
 
 type LoggedUser = {
   id: number;
@@ -26,20 +24,22 @@ const parentScreen: Record<Screen, Screen | null> = {
   cadastro: "main",
   worlds: "main",
   notes: "worlds",
-  note: "notes",
 };
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("main");
   const [currentUser, setCurrentUser] = useState<LoggedUser | null>(null);
   const [currentWorld, setCurrentWorld] = useState<WorldItem | null>(null);
-  const [currentNote, setCurrentNote] = useState<NoteItem | null>(null);
+  // Set by the volume screen, which handles back itself while its sidebar or a note is open.
+  const volumeBack = useRef<(() => boolean) | null>(null);
 
   // Android hardware back button: go up one screen, or exit from the main screen.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
     const listener = CapacitorApp.addListener("backButton", () => {
+      if (screen === "notes" && volumeBack.current?.()) return;
+
       const parent = parentScreen[screen];
       if (parent) {
         setScreen(parent);
@@ -70,19 +70,12 @@ export function App() {
     return <Cadastrar onBack={() => setScreen("main")} onGoToLogin={() => setScreen("login")} />;
   }
 
-  if (screen === "note" && currentWorld) {
-    return <NoteEditor world={currentWorld} note={currentNote} onBack={() => setScreen("notes")} />;
-  }
-
   if (screen === "notes" && currentWorld) {
     return (
       <WorldNotes
         world={currentWorld}
         onBack={() => setScreen("worlds")}
-        onOpenNote={note => {
-          setCurrentNote(note);
-          setScreen("note");
-        }}
+        backHandler={volumeBack}
       />
     );
   }

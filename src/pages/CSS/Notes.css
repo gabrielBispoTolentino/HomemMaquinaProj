@@ -1,108 +1,372 @@
 @import "./Binder.css";
 
-.notes {
-  min-height: 100vh;
-  width: 100%;
+/* The open volume: its listing in a sidebar on the left, the open note in the middle. */
+.volume {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
   background: var(--binder-slate);
   color: var(--binder-on-slate);
-  padding: 1rem 1rem 2rem;
   font-family: var(--binder-text);
 }
 
-.notes__topbar {
+.volume__sidebar {
+  flex: none;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto 0.75rem;
+  flex-direction: column;
+  width: 320px;
+  min-height: 0;
+  background: var(--binder-slate-deep);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.notes__search {
-  flex: 1;
-  min-width: 0;
-  height: 44px;
-  border: 0;
-  border-radius: 999px;
-  padding: 0 1.1rem;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--binder-on-slate);
-  font-family: var(--binder-display);
-  font-size: 1.15rem;
-  font-weight: 500;
+.volume--sidebar-hidden .volume__sidebar {
+  display: none;
 }
 
-.notes__search::placeholder {
-  color: var(--binder-on-slate-muted);
-}
-
-.notes__search:focus {
-  outline: none;
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 0 0 2px var(--world);
-}
-
-/* The open divider: the world's color as a band, with the same tab it has in the worlds menu. */
-.notes__binder {
-  max-width: 640px;
-  margin: calc(var(--binder-tab-height) + 0.25rem) auto 0;
-}
-
-.notes__band {
-  position: relative;
-  border-radius: 0 18px 0 0;
-  padding: 1.1rem 1.25rem 1.25rem;
+/* The volume's divider: its color as a band across the top of the sidebar. */
+.volume__band {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.75rem 0.5rem 0.9rem;
   background: var(--world);
   color: var(--binder-ink);
 }
 
-.notes__band-tab {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  width: var(--binder-tab-width);
-  height: var(--binder-tab-height);
-  border-radius: 12px 12px 0 0;
+.volume__band-button {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--world);
-  font-size: 1.3rem;
-  line-height: 1;
+  background: transparent;
+  color: var(--binder-ink);
+  font-size: 1.4rem;
+  cursor: pointer;
 }
 
-.notes__band-title {
+.volume__band-button:hover {
+  background: rgba(24, 34, 44, 0.1);
+}
+
+.volume__band-button:focus-visible {
+  outline: 3px solid var(--binder-ink);
+  outline-offset: 1px;
+}
+
+.volume__band-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.2rem;
+}
+
+.volume__title {
   margin: 0;
   font-family: var(--binder-display);
-  font-size: clamp(2.4rem, 11vw, 3.4rem);
+  font-size: 1.9rem;
   font-weight: 700;
   font-style: italic;
-  line-height: 0.95;
+  line-height: 1;
   overflow-wrap: anywhere;
 }
 
-.notes__band-count {
-  margin: 0.45rem 0 0;
+.volume__icon {
+  margin-right: 0.4rem;
+  font-size: 1.2rem;
+  font-style: normal;
+  vertical-align: 0.15em;
+}
+
+.volume__count {
+  margin: 0.3rem 0 0;
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.volume__search {
+  flex: none;
+  height: 40px;
+  margin: 0.85rem 0.85rem 0;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
   font-family: var(--binder-display);
   font-size: 1.1rem;
   font-weight: 500;
 }
 
-.notes__sheet {
-  border-radius: 0 0 18px 18px;
-  background: var(--binder-paper);
-  color: var(--binder-ink);
-  box-shadow: 0 18px 36px rgba(8, 13, 18, 0.3);
+.volume__search::placeholder {
+  color: var(--binder-on-slate-muted);
 }
 
-.notes__status {
-  margin: 0;
-  padding: 1.5rem 1.25rem;
+.volume__search:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 2px var(--world);
+}
+
+.volume__tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 0.5rem 1rem;
+}
+
+.volume__status {
+  margin: 0.5rem 0.75rem;
+  font-size: 0.95rem;
   line-height: 1.6;
-  color: var(--binder-muted);
+  color: var(--binder-on-slate-muted);
 }
 
-.notes__status--error {
-  color: #a3322a;
+.volume__status--error {
+  color: #f5a7a1;
+}
+
+.volume__actions {
+  flex: none;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.volume__actions .binder-button {
+  padding: 0.55rem 0.9rem;
+  font-size: 1.05rem;
+}
+
+.volume__new-note {
+  background: var(--world);
+  color: var(--binder-ink);
+}
+
+.volume__new-subgroup {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
+}
+
+.volume__new-subgroup:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* The middle: the open note, centered, or nothing at all. */
+.volume__main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  padding: 1.25rem 2rem;
+}
+
+/* With no note open, the button that shows the sidebar again sits alone in the corner. */
+.volume__blank {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+}
+
+/* The listing: subgroups are collapsible folders, notes are rows. */
+.note-tree,
+.tree-group__notes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tree-group__head {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  border-radius: 8px;
+}
+
+.tree-group__head:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tree-group__toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+  background: transparent;
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* While searching, every subgroup with a match is shown open. */
+.tree-group__toggle:disabled {
+  cursor: default;
+}
+
+.tree-group__caret {
+  flex: none;
+  width: 0.8rem;
+  font-size: 0.8rem;
+  color: var(--binder-on-slate-muted);
+  transition: transform 0.15s ease;
+}
+
+.tree-group__toggle[aria-expanded="true"] .tree-group__caret {
+  transform: rotate(90deg);
+}
+
+.tree-group__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-group__count {
+  flex: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--binder-on-slate-muted);
+}
+
+.tree-group__action {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--binder-on-slate-muted);
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.tree-group__action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--binder-on-slate);
+}
+
+/* With a mouse, a subgroup's actions show on hover; on touch screens they're always there. */
+@media (hover: hover) {
+  .tree-group__action {
+    opacity: 0;
+  }
+
+  .tree-group__head:hover .tree-group__action,
+  .tree-group__head:focus-within .tree-group__action {
+    opacity: 1;
+  }
+}
+
+.tree-group__input {
+  flex: 1;
+  min-width: 0;
+  margin: 0.15rem 0;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.tree-group__input::placeholder {
+  color: var(--binder-on-slate-muted);
+}
+
+.tree-group__input:focus {
+  outline: 2px solid var(--world);
+}
+
+/* A subgroup's notes hang from a thread down its left side. */
+.tree-group__notes {
+  margin: 0 0 0.35rem 0.95rem;
+  padding-left: 0.4rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.tree-note {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tree-note:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tree-note[aria-current="page"] {
+  background: var(--world);
+  color: var(--binder-ink);
+  font-weight: 600;
+}
+
+.tree-note:focus-visible,
+.tree-group__toggle:focus-visible,
+.tree-group__action:focus-visible {
+  outline: 2px solid var(--binder-paper);
+  outline-offset: -2px;
+}
+
+.tree-note__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-note__title--untitled {
+  font-style: italic;
+  color: var(--binder-on-slate-muted);
+}
+
+.tree-note[aria-current="page"] .tree-note__title--untitled {
+  color: inherit;
+}
+
+/* The note's category, as a small index tab. */
+.tree-note__category {
+  flex: none;
+  max-width: 40%;
+  border-radius: 5px 5px 0 0;
+  padding: 0.15rem 0.4rem 0.1rem;
+  background: var(--category);
+  color: var(--binder-ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Category tabs, shared by the list filter and the editor. Each category has its own pastel (--category, see
@@ -172,6 +436,141 @@
   scrollbar-width: none;
   padding: 1rem 1.25rem 0;
   border-bottom: 2px solid #cdd6dc;
+}
+
+/* In the sidebar the category tabs and their manager sit on the dark slate instead of paper. */
+.volume__sidebar .notes__filters {
+  padding: 0.85rem 0.85rem 0;
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.volume__sidebar .category-chip {
+  background: color-mix(in srgb, var(--category, var(--world)) 24%, transparent);
+  color: var(--binder-on-slate);
+}
+
+.volume__sidebar .category-chip:hover {
+  background: color-mix(in srgb, var(--category, var(--world)) 38%, transparent);
+}
+
+.volume__sidebar .category-chip[aria-pressed="true"] {
+  background: var(--category, var(--world));
+  color: var(--binder-ink);
+}
+
+.volume__sidebar .category-chip--add {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: var(--binder-on-slate-muted);
+}
+
+.volume__sidebar .category-chip--add:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.volume__sidebar .category-chip:focus-visible {
+  outline-color: var(--binder-paper);
+}
+
+.volume__sidebar .category-manager {
+  padding: 0.85rem;
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.volume__sidebar .category-manager__done {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--binder-on-slate);
+}
+
+.volume__sidebar .category-manager__done:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.volume__sidebar .category-row__name {
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+  color: var(--binder-on-slate);
+}
+
+.volume__sidebar .category-row__name:focus {
+  border-bottom-color: var(--binder-on-slate);
+}
+
+.volume__sidebar .category-row__count,
+.volume__sidebar .category-row__delete {
+  color: var(--binder-on-slate-muted);
+}
+
+.volume__sidebar .category-manager__error {
+  color: #f5a7a1;
+}
+
+/* The open note in the middle: where it's filed (Subgrupo / Título) above the page. */
+.note-pane {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 760px;
+  min-height: 0;
+}
+
+.note-pane__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.note-pane__path {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--binder-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--binder-on-slate);
+}
+
+.note-pane__subgroup {
+  flex: none;
+  max-width: 45%;
+  appearance: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.3rem 1.6rem 0.3rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239fb0bd' stroke-width='1.5'/%3E%3C/svg%3E")
+    no-repeat right 0.55rem center / 0.65rem;
+  color: var(--binder-on-slate);
+  font: inherit;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.note-pane__subgroup:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+.note-pane__subgroup:focus-visible {
+  outline: 2px solid var(--binder-paper);
+}
+
+.note-pane__subgroup option {
+  background: var(--binder-slate-deep);
+  color: var(--binder-on-slate);
+}
+
+.note-pane__separator {
+  color: var(--binder-on-slate-muted);
+}
+
+.note-pane__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Takes the filter row's place while open. */
@@ -301,180 +700,6 @@
   color: #a3322a;
 }
 
-/* Index cards in the drawer. The gap leaves room for each card's category tab. */
-.notes__list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.6rem;
-  margin: 0;
-  padding: 1.75rem 1rem 1.25rem;
-  list-style: none;
-}
-
-.note-card {
-  position: relative;
-  width: 100%;
-  border: 0;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.85rem 1rem 0.9rem;
-  background: #fafbfb;
-  color: var(--binder-ink);
-  text-align: left;
-  box-shadow:
-    0 1px 2px rgba(16, 26, 34, 0.12),
-    0 6px 14px rgba(16, 26, 34, 0.08);
-  cursor: pointer;
-}
-
-.note-card:hover {
-  background: #fff;
-}
-
-.note-card:focus-visible {
-  outline: 3px solid var(--binder-slate);
-  outline-offset: 2px;
-}
-
-.note-card__tab {
-  position: absolute;
-  bottom: 100%;
-  right: 0.9rem;
-  max-width: 60%;
-  border-radius: 7px 7px 0 0;
-  padding: 0.3rem 0.65rem 0.25rem;
-  background: var(--category);
-  font-family: var(--binder-display);
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The heading line of an index card, ruled in the world's color. */
-.note-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 0.45rem;
-  border-bottom: 2px solid var(--world);
-}
-
-.note-card__title {
-  min-width: 0;
-  font-family: var(--binder-display);
-  font-size: 1.45rem;
-  font-weight: 600;
-  line-height: 1.1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.note-card__title--untitled {
-  font-style: italic;
-  font-weight: 700;
-  color: var(--binder-muted);
-}
-
-/* A rubber stamp in blue-gray ink. */
-.note-card__stamp {
-  flex: none;
-  border: 1.5px solid currentColor;
-  border-radius: 3px;
-  padding: 0.2rem 0.4rem 0.15rem;
-  font-family: var(--binder-display);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
-  color: #5b7182;
-  transform: rotate(-2deg);
-}
-
-/* Ruled lines under the text, one per line of the preview. */
-.note-card__preview {
-  --rule: 1.6rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 0.95rem;
-  line-height: var(--rule);
-  color: #4a5966;
-  white-space: pre-line;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(var(--rule) - 1px),
-    #d7e1e7 calc(var(--rule) - 1px),
-    #d7e1e7 var(--rule)
-  );
-}
-
-/* Stays within thumb reach while the list scrolls. */
-.notes__new {
-  position: sticky;
-  bottom: calc(1rem + env(safe-area-inset-bottom));
-  display: flex;
-  justify-content: flex-end;
-  max-width: 640px;
-  margin: 1.25rem auto 0;
-  pointer-events: none;
-}
-
-.notes__new-button {
-  pointer-events: auto;
-  padding: 0.85rem 1.3rem;
-  background: var(--world);
-  color: var(--binder-ink);
-  font-size: 1.3rem;
-  box-shadow: 0 10px 24px rgba(8, 13, 18, 0.4);
-}
-
-.notes__new-button span {
-  font-size: 1.5rem;
-  line-height: 0.7;
-}
-
-/* Editor */
-.notes--editor {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
-}
-
-.notes__world-chip {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: var(--binder-display);
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--binder-on-slate);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notes__world-chip::before {
-  content: "";
-  flex: none;
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  background: var(--world);
-}
-
 .notes__delete-button {
   flex: none;
   border: 0;
@@ -502,6 +727,7 @@
   opacity: 0.6;
 }
 
+
 /* A page of the open divider: the margin line is drawn in the world's color. */
 .note-editor {
   --margin: 1.6rem;
@@ -509,9 +735,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 640px;
   min-height: 0;
-  margin: 0 auto;
   border-radius: 18px;
   padding: 1.25rem 1.25rem 1rem calc(var(--margin) + 1.1rem);
   background:
@@ -597,11 +821,43 @@
 }
 
 @media (min-width: 640px) {
-  .notes {
-    padding-top: 2rem;
-  }
-
   .note-editor {
     --margin: 2.75rem;
+  }
+}
+
+/* Phones: the sidebar is a drawer over the note, closed until asked for. */
+@media (max-width: 799px) {
+  .volume__sidebar {
+    position: fixed;
+    z-index: 20;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(88vw, 340px);
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .volume__backdrop {
+    position: fixed;
+    z-index: 15;
+    inset: 0;
+    background: rgba(14, 21, 28, 0.6);
+  }
+
+  .volume__main {
+    padding: 0.75rem 0.75rem 1rem;
+  }
+}
+
+@media (min-width: 800px) {
+  .volume__backdrop {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-group__caret {
+    transition: none;
   }
 }
