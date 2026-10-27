@@ -88,10 +88,98 @@
   font-weight: 500;
 }
 
-.volume__search {
+/* The volume read as a manuscript or pinned up on the corkboard. */
+.volume__views {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.volume__view-button {
+  border: 1.5px solid rgba(24, 34, 44, 0.35);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  background: transparent;
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.volume__view-button:hover {
+  background: rgba(24, 34, 44, 0.1);
+}
+
+.volume__view-button:focus-visible {
+  outline: 2px solid var(--binder-ink);
+  outline-offset: 2px;
+}
+
+.volume__view-button[aria-pressed="true"] {
+  border-color: var(--binder-ink);
+  background: var(--binder-ink);
+  color: var(--world);
+}
+
+.volume__views {
+  flex-wrap: wrap;
+}
+
+/* "+ Verbete" with templates on: blank or from a template, just above the sidebar's buttons. */
+.template-menu {
   flex: none;
-  height: 40px;
+  display: flex;
+  flex-direction: column;
+  max-height: 45vh;
+  overflow-y: auto;
+  margin: 0 0.85rem 0.5rem;
+  border-radius: 10px;
+  padding: 0.3rem;
+  background: var(--binder-slate);
+  box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.template-menu__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.volume__search-row {
+  flex: none;
+  display: flex;
+  gap: 0.4rem;
   margin: 0.85rem 0.85rem 0;
+}
+
+.volume__status-filter {
+  flex: none;
+  max-width: 7.5rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.volume__status-filter option {
+  background: var(--binder-slate-deep);
+  color: var(--binder-on-slate);
+}
+
+.volume__status-filter:focus-visible {
+  outline: 2px solid var(--world);
+}
+
+.volume__search {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
   border: 0;
   border-radius: 999px;
   padding: 0 1rem;
@@ -116,6 +204,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   padding: 0.75rem 0.5rem 1rem;
 }
 
@@ -174,9 +263,9 @@
   left: 1rem;
 }
 
-/* The listing: subgroups are collapsible folders, notes are rows. */
+/* The listing: subgroups are collapsible, nestable folders; notes are rows. */
 .note-tree,
-.tree-group__notes {
+.tree-group__children {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -261,16 +350,67 @@
   color: var(--binder-on-slate);
 }
 
-/* With a mouse, a subgroup's actions show on hover; on touch screens they're always there. */
+/* With a mouse, a subgroup's menu button shows on hover (or while its menu is open); on touch screens it's always there. */
 @media (hover: hover) {
   .tree-group__action {
     opacity: 0;
   }
 
   .tree-group__head:hover .tree-group__action,
-  .tree-group__head:focus-within .tree-group__action {
+  .tree-group__head:focus-within .tree-group__action,
+  .tree-group__action[aria-expanded="true"] {
     opacity: 1;
   }
+}
+
+/* A subgroup's actions, opened from its ⋯ button, just under its header. */
+.tree-menu {
+  display: flex;
+  flex-direction: column;
+  margin: 0.15rem 0 0.4rem 1.25rem;
+  border-radius: 10px;
+  padding: 0.3rem;
+  background: var(--binder-slate);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.tree-menu__heading {
+  margin: 0.35rem 0.6rem 0.25rem;
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--binder-on-slate-muted);
+}
+
+.tree-menu__item {
+  border: 0;
+  border-radius: 7px;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.tree-menu__item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tree-menu__item:focus-visible {
+  outline: 2px solid var(--binder-paper);
+  outline-offset: -2px;
+}
+
+.tree-menu__item--muted {
+  color: var(--binder-on-slate-muted);
+}
+
+.tree-menu__item--danger {
+  color: #f5a7a1;
 }
 
 .tree-group__input {
@@ -295,8 +435,8 @@
   outline: 2px solid var(--world);
 }
 
-/* A subgroup's notes hang from a thread down its left side. */
-.tree-group__notes {
+/* What's inside a subgroup hangs from a thread down its left side, one step in per level. */
+.tree-group__children {
   margin: 0 0 0.35rem 0.95rem;
   padding-left: 0.4rem;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
@@ -334,6 +474,19 @@
 .tree-group__action:focus-visible {
   outline: 2px solid var(--binder-paper);
   outline-offset: -2px;
+}
+
+/* Status as a filling circle: ○ ideia, ◔ rascunho, ◑ revisão, ● final. */
+.tree-note__status {
+  flex: none;
+  width: 1rem;
+  font-size: 0.9rem;
+  color: var(--binder-on-slate-muted);
+  text-align: center;
+}
+
+.tree-note[aria-current="page"] .tree-note__status {
+  color: inherit;
 }
 
 .tree-note__title {
@@ -566,6 +719,30 @@
   color: var(--binder-on-slate-muted);
 }
 
+/* Quiet header buttons, like "Versões". */
+.note-pane__tool {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.55rem 0.9rem;
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--binder-on-slate-muted);
+  cursor: pointer;
+}
+
+.note-pane__tool:hover,
+.note-pane__tool[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
+}
+
+.note-pane__tool:focus-visible {
+  outline: 3px solid var(--binder-paper);
+}
+
 .note-pane__name {
   min-width: 0;
   overflow: hidden;
@@ -773,6 +950,259 @@
   color: #a3322a;
 }
 
+/* Ideia → Rascunho → Revisão → Final; clicking the current one clears it. */
+.note-editor__statuses {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0 0 0.85rem;
+}
+
+.note-editor__status-option {
+  border: 1.5px solid #c4cfd7;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  background: transparent;
+  color: var(--binder-muted);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+.note-editor__status-option:hover {
+  background: var(--binder-paper-shade);
+}
+
+.note-editor__status-option[aria-pressed="true"] {
+  border-color: var(--binder-ink);
+  background: var(--binder-ink);
+  color: var(--binder-paper);
+}
+
+.note-editor__status-option:focus-visible {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 2px;
+}
+
+/* The line shown on the note's corkboard card. */
+.note-editor__synopsis {
+  flex: none;
+  margin: 0 0 1rem;
+  border: 0;
+  border-bottom: 1px dashed #b9c5ce;
+  padding: 0.3rem 0;
+  background: transparent;
+  color: var(--binder-ink);
+  font-family: var(--binder-text);
+  font-size: 0.98rem;
+  font-style: italic;
+}
+
+.note-editor__synopsis::placeholder {
+  color: #93a1ac;
+}
+
+.note-editor__synopsis:focus {
+  outline: none;
+  border-bottom-color: var(--binder-ink);
+}
+
+/* When the note happens, for the timeline. */
+.note-editor__when {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.75rem;
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--binder-muted);
+}
+
+.note-editor__when input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px dashed #b9c5ce;
+  padding: 0.2rem 0;
+  background: transparent;
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.note-editor__when input:focus {
+  outline: none;
+  border-bottom-color: var(--binder-ink);
+}
+
+/* Custom fields: name on the left, value on the right, like a record card. */
+.note-fields {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 0 1rem;
+}
+
+.note-fields__row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 30%) 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  border-bottom: 1px solid #d3dce2;
+}
+
+.note-fields__key,
+.note-fields__value {
+  min-width: 0;
+  border: 0;
+  padding: 0.35rem 0;
+  background: transparent;
+  color: var(--binder-ink);
+}
+
+.note-fields__key {
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--binder-muted);
+}
+
+.note-fields__value {
+  font-family: var(--binder-text);
+  font-size: 0.98rem;
+}
+
+.note-fields__key:focus,
+.note-fields__value:focus {
+  outline: none;
+  background: var(--binder-paper-shade);
+}
+
+.note-fields__remove {
+  border: 0;
+  border-radius: 6px;
+  padding: 0.1rem 0.45rem;
+  background: transparent;
+  color: #93a1ac;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.note-fields__remove:hover {
+  color: #a3322a;
+}
+
+.note-fields__add {
+  align-self: flex-start;
+  margin-top: 0.3rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--binder-muted);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note-fields__add:hover {
+  color: var(--binder-ink);
+}
+
+/* The note's text, with [[ suggestions floating over its bottom edge. */
+.note-editor__body {
+  position: relative;
+  flex: 1;
+  min-height: 6rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.mention-suggest {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  bottom: 0.5rem;
+  min-width: 14rem;
+  max-width: 100%;
+  margin: 0;
+  border-radius: 10px;
+  padding: 0.3rem;
+  background: var(--binder-slate);
+  list-style: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.mention-suggest button {
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mention-suggest li[aria-selected="true"] button,
+.mention-suggest button:hover {
+  background: var(--world);
+  color: var(--binder-ink);
+}
+
+.note-editor__hint {
+  flex: none;
+  margin: 0.5rem 0 0;
+  font-family: var(--binder-display);
+  font-size: 0.9rem;
+  color: var(--binder-muted);
+}
+
+/* Mentions in both directions, under the text. */
+.note-links {
+  flex: none;
+  margin-top: 0.6rem;
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+}
+
+.note-links p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.4rem;
+  margin: 0.25rem 0;
+}
+
+.note-links__label {
+  font-weight: 600;
+  color: var(--binder-muted);
+}
+
+.note-links__link {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  background: var(--binder-paper-shade);
+  color: var(--binder-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note-links__link:hover {
+  background: var(--world);
+}
+
 .note-editor__categories {
   flex: none;
   display: flex;
@@ -824,6 +1254,61 @@
   .note-editor {
     --margin: 2.75rem;
   }
+}
+
+/* Drag and drop (see useDragDrop.tsx). Rows can be dragged, so a long press mustn't select their text. */
+.tree-note,
+.tree-group__toggle {
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body.is-dragging,
+body.is-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+/* The label that follows the pointer. */
+.drag-ghost {
+  position: fixed;
+  z-index: 50;
+  max-width: 16rem;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  background: var(--binder-paper);
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  transform: translate(12px, 12px) rotate(-2deg);
+  pointer-events: none;
+}
+
+/* Where a dragged row would land: a line above or below a row, or a ring around a subgroup it would go into. */
+.tree-note[data-drop-where="before"],
+.tree-group__head[data-drop-where="before"] {
+  box-shadow: inset 0 3px 0 var(--world);
+}
+
+.tree-note[data-drop-where="after"],
+.tree-group__head[data-drop-where="after"] {
+  box-shadow: inset 0 -3px 0 var(--world);
+}
+
+.tree-group__head[data-drop-where="inside"] {
+  background: color-mix(in srgb, var(--world) 25%, transparent);
+  box-shadow: inset 0 0 0 2px var(--world);
+}
+
+.tree-group__children[data-drop-where="inside"],
+.volume__tree[data-drop-where="inside"] {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--world) 60%, transparent);
+  border-radius: 8px;
 }
 
 /* Phones: the sidebar is a drawer over the note, closed until asked for. */

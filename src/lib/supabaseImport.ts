@@ -66,14 +66,16 @@ function importStatements(userId: number, remote: Awaited<ReturnType<typeof fetc
       params: [category.id, category.world_id, category.name, toIso(category.created_at)],
     })),
     ...remote.notes.map(note => ({
-      sql: `INSERT OR IGNORE INTO notes (id, world_id, title, content, category_id, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      // Ordered by creation, like notes written here (see order.ts).
+      sql: `INSERT OR IGNORE INTO notes (id, world_id, title, content, category_id, position, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [
         note.id,
         note.world_id,
         note.title,
         note.content,
         note.category_id,
+        new Date(note.created_at).getTime(),
         toIso(note.created_at),
         toIso(note.updated_at),
       ],

@@ -1,0 +1,556 @@
+@import "./Writing.css";
+
+/* The volume-wide views in the middle of a volume: Recursos, timeline, relationship map, name check and the
+   game master's table. Each is a header and a scrolling body on the dark slate. */
+.world-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 900px;
+  min-height: 0;
+}
+
+.world-view__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.world-view__title {
+  margin: 0;
+  font-family: var(--binder-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+}
+
+.world-view__kind {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.85rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--binder-on-slate-muted);
+}
+
+.world-view__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.world-view__empty {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--binder-on-slate-muted);
+}
+
+/* Recursos */
+.settings__intro {
+  max-width: 40rem;
+  margin: 0 0 1.25rem;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--binder-on-slate-muted);
+}
+
+.settings__group {
+  margin-bottom: 1.5rem;
+}
+
+.settings__group-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--binder-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.settings__feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+}
+
+.settings__feature:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.settings__feature--blocked .settings__label {
+  color: var(--binder-on-slate-muted);
+}
+
+/* A checkbox drawn as an on/off switch. */
+.settings__switch {
+  flex: none;
+  appearance: none;
+  position: relative;
+  width: 2.6rem;
+  height: 1.5rem;
+  margin: 0.1rem 0 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.settings__switch::after {
+  content: "";
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--binder-on-slate);
+  transition: transform 0.15s ease;
+}
+
+.settings__switch:checked {
+  background: var(--world);
+}
+
+.settings__switch:checked::after {
+  background: var(--binder-ink);
+  transform: translateX(1.1rem);
+}
+
+.settings__switch:focus-visible {
+  outline: 2px solid var(--binder-paper);
+  outline-offset: 2px;
+}
+
+.settings__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.settings__label {
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.settings__description {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--binder-on-slate-muted);
+}
+
+.settings__select-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.75rem;
+}
+
+.settings__select {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1rem;
+}
+
+.settings__select option {
+  background: var(--binder-slate-deep);
+}
+
+/* Timeline: a line down the left, a dot and a card per event. */
+.timeline {
+  margin: 0;
+  padding: 0 0 1rem;
+  list-style: none;
+}
+
+.timeline__event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 1.25rem;
+  padding-bottom: 1rem;
+}
+
+.timeline__event::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(8.5rem + 0.6rem);
+  width: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.timeline__event::after {
+  content: "";
+  position: absolute;
+  top: 0.95rem;
+  left: calc(8.5rem + 0.6rem - 5px);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--category, var(--world));
+}
+
+.timeline__when {
+  padding-top: 0.75rem;
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: right;
+  color: var(--binder-on-slate-muted);
+  overflow-wrap: anywhere;
+}
+
+.timeline__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-left: 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  background: var(--binder-paper);
+  color: var(--binder-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.timeline__card:hover {
+  background: #fff;
+}
+
+.timeline__card:focus-visible {
+  outline: 3px solid var(--binder-paper);
+  outline-offset: 3px;
+}
+
+.timeline__title {
+  font-family: var(--binder-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.timeline__category {
+  align-self: flex-start;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  background: var(--category, var(--binder-paper-shade));
+  font-family: var(--binder-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.timeline__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #4a5966;
+}
+
+/* Relationship map */
+.relation-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 14px 14px,
+    var(--binder-slate-deep);
+}
+
+.relation-map__edge {
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 1.5;
+}
+
+.relation-map__node {
+  cursor: pointer;
+}
+
+.relation-map__node circle {
+  stroke: var(--binder-slate-deep);
+  stroke-width: 3;
+}
+
+.relation-map__node text {
+  fill: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 17px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--binder-slate-deep);
+  stroke-width: 4px;
+}
+
+.relation-map__node:hover circle,
+.relation-map__node:focus-visible circle {
+  stroke: var(--binder-paper);
+}
+
+.relation-map__node:focus {
+  outline: none;
+}
+
+/* Name check */
+.names {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.names__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.6rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.names__pair {
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+}
+
+.names__found {
+  font-weight: 700;
+  color: #f5a7a1;
+}
+
+.names__likely {
+  font-weight: 700;
+  color: #a8d5c2;
+}
+
+.names__where {
+  color: var(--binder-on-slate-muted);
+}
+
+.names__notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.names__note {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.names__note:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Game master's table */
+.table-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-content: start;
+  gap: 1rem;
+}
+
+.table-tool {
+  border-radius: 14px;
+  padding: 1rem;
+  background: var(--binder-slate-deep);
+}
+
+.table-tool__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 0.75rem;
+  font-family: var(--binder-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.table-tool__round {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--world);
+}
+
+.table-tool__row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.table-tool__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+}
+
+.table-tool__input option {
+  background: var(--binder-slate-deep);
+}
+
+.table-tool__input:focus {
+  outline: 2px solid var(--world);
+}
+
+.table-tool__input--short {
+  flex: none;
+  width: 4.5rem;
+}
+
+.table-tool__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.table-tool__error {
+  margin: 0 0 0.5rem;
+  color: #f5a7a1;
+}
+
+.table-tool__result {
+  margin: 0.25rem 0 0.5rem;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  background: var(--binder-paper);
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.table-tool__link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--binder-on-slate-muted);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.dice-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dice-history li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+  color: var(--binder-on-slate-muted);
+}
+
+.dice-history__total {
+  min-width: 2.5rem;
+  font-family: var(--binder-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.dice-history__latest .dice-history__total {
+  font-size: 2rem;
+  color: var(--world);
+}
+
+.dice-history__latest {
+  color: var(--binder-on-slate);
+}
+
+.dice-history__detail {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.initiative {
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.initiative__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 8px;
+  padding: 0.3rem 0.4rem;
+}
+
+.initiative__row[aria-current="true"] {
+  background: var(--world);
+  color: var(--binder-ink);
+}
+
+.initiative__value {
+  min-width: 2rem;
+  font-family: var(--binder-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.initiative__name {
+  flex: 1;
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+}
+
+.initiative__row[aria-current="true"] .writing-button--quiet {
+  color: var(--binder-ink);
+}
+
+@media (max-width: 799px) {
+  .timeline__event {
+    grid-template-columns: 5.5rem 1fr;
+    gap: 0.9rem;
+  }
+
+  .timeline__event::before {
+    left: calc(5.5rem + 0.45rem);
+  }
+
+  .timeline__event::after {
+    left: calc(5.5rem + 0.45rem - 5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings__switch,
+  .settings__switch::after {
+    transition: none;
+  }
+}

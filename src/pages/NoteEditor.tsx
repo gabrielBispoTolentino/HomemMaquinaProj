@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { categoryColor, createCategory, findCategoryByName, type CategoryItem } from "../lib/categories";
+import { featureOn, type FeatureId } from "../lib/features";
+import { backlinks, mentionedNotes, notesByTitle, titleKey } from "../lib/mentions";
 import { createNote, deleteNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
-import type { SubgroupItem } from "../lib/subgroups";
+import { endPosition } from "../lib/order";
+import { subgroupPaths, type SubgroupItem } from "../lib/subgroups";
+import { countWords, formatWords, NOTE_STATUSES } from "../lib/writing";
 import type { WorldItem } from "../lib/worlds";
+import NoteFields from "./NoteFields.tsx";
+import NoteVersions from "./NoteVersions.tsx";
 import "./CSS/Notes.css";
 
 type NoteEditorProps = {
@@ -13,6 +19,12 @@ type NoteEditorProps = {
   note: NoteItem | null;
   // Where a new note goes, e.g. when it was started from a subgroup's "+".
   initialSubgroupId: string | null;
+  // A new note's starting text, category and fields, from a note template.
+  preset?: Partial<NoteDraft>;
+  features: Set<FeatureId>;
+  // Every note in the volume, for [[mentions]] and the notes that mention this one.
+  allNotes: NoteItem[];
+  onOpenNote: (note: NoteItem) => void;
   categories: CategoryItem[];
   subgroups: SubgroupItem[];
   onCategoryCreated: (category: CategoryItem) => void;
@@ -38,12 +50,26 @@ function registerText(createdAt: string, updatedAt: string) {
   return sameDay ? registered : `${registered} · Revisado em ${registerDate(updatedAt)}`;
 }
 
+// The [[mention]] being typed just before the caret: where its name starts and what's typed of it so far.
+function mentionAtCaret(text: string, caret: number) {
+  const match = text.slice(0, caret).match(/\[\[([^[\]\n]*)$/);
+  return match ? { start: caret - match[1]!.length, query: match[1]! } : null;
+}
+
 export default function NoteEditor(props: NoteEditorProps) {
-  const { world, note, categories, subgroups } = props;
-  const [title, setTitle] = useState(note?.title ?? "");
-  const [content, setContent] = useState(note?.content ?? "");
-  const [categoryId, setCategoryId] = useState(note?.category_id ?? null);
+  const { world, note, categories, subgroups, features, allNotes } = props;
+  const preset = note ? undefined : props.preset;
+  const on = (id: FeatureId) => featureOn(features, id);
+  const [title, setTitle] = useState(note?.title ?? preset?.title ?? "");
+  const [content, setContent] = useState(note?.content ?? preset?.content ?? "");
+  const [categoryId, setCategoryId] = useState(note?.category_id ?? preset?.categoryId ?? null);
   const [subgroupId, setSubgroupId] = useState(note ? note.subgroup_id : props.initialSubgroupId);
+  const [status, setStatus] = useState(note?.status ?? null);
+  const [synopsis, setSynopsis] = useState(note?.synopsis ?? "");
+  const [fields, setFields] = useState(note?.fields ?? preset?.fields ?? []);
+  const [timeline, setTimeline] = useState(note?.timeline ?? preset?.timeline ?? "");
+  const [mention, setMention] = useState<{ start: number; query: string; index: number } | null>(null);
+  const [showVersions, setShowVersions] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -56,7 +82,9 @@ export default function NoteEditor(props: NoteEditorProps) {
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const noteId = useRef(note?.id ?? null);
   const createdAtRef = useRef(createdAt);
-  const draft = useRef<NoteDraft>({ title, content, categoryId, subgroupId });
+  const draft = useRef<NoteDraft>({ title, content, categoryId, subgroupId, status, synopsis, fields, timeline });
+  // The content's word count as last saved, so each save adds only the difference to today's writing.
+  const savedWords = useRef(countWords(content));
   // Set by Escape so the blur that follows discards the new category instead of creating it.
   const cancelCategory = useRef(false);
   const dirty = useRef(false);
@@ -69,27 +97,49 @@ export default function NoteEditor(props: NoteEditorProps) {
     dirty.current = false;
 
     const current = draft.current;
+    const words = countWords(current.content);
     const fields = {
       title: current.title,
       content: current.content,
       category_id: current.categoryId,
       subgroup_id: current.subgroupId,
+      status: current.status,
+      synopsis: current.synopsis,
+      fields: current.fields,
+      timeline: current.timeline,
     };
 
     if (!noteId.current) {
       if (!current.title.trim() && !current.content.trim()) return;
-      const created = await createNote(world.id, current);
+      // New notes go at the end of their subgroup.
+      const position = endPosition();
+      const created = await createNote(world.id, current, position);
       noteId.current = created.id;
+      savedWords.current = words;
       createdAtRef.current = created.created_at;
       setCreatedAt(created.created_at);
       setUpdatedAt(created.created_at);
-      props.onSaved({ id: created.id, ...fields, created_at: created.created_at, updated_at: created.created_at });
+      props.onSaved({
+        id: created.id,
+        ...fields,
+        position,
+        created_at: created.created_at,
+        updated_at: created.created_at,
+      });
       return;
     }
 
-    const updated = await updateNote(noteId.current, current);
+    const updated = await updateNote(noteId.current, world.id, current, words - savedWords.current);
+    savedWords.current = words;
     setUpdatedAt(updated);
-    props.onSaved({ id: noteId.current, ...fields, created_at: createdAtRef.current ?? updated, updated_at: updated });
+    // The listing keeps its own position for the note, which drag and drop may have changed meanwhile.
+    props.onSaved({
+      id: noteId.current,
+      ...fields,
+      position: note?.position ?? 0,
+      created_at: createdAtRef.current ?? updated,
+      updated_at: updated,
+    });
   };
 
   const save = () => {
@@ -119,6 +169,10 @@ export default function NoteEditor(props: NoteEditorProps) {
     setContent(next.content);
     setCategoryId(next.categoryId);
     setSubgroupId(next.subgroupId);
+    setStatus(next.status);
+    setSynopsis(next.synopsis);
+    setFields(next.fields);
+    setTimeline(next.timeline);
     draft.current = next;
     dirty.current = true;
     setSaveState("pending");
@@ -127,22 +181,36 @@ export default function NoteEditor(props: NoteEditorProps) {
     timer.current = setTimeout(save, AUTOSAVE_DELAY_MS);
   };
 
-  // A category or subgroup deleted from the sidebar while this note is open: the database already cleared it
-  // from the note, so drop it from the draft too, or the next save would point at a row that no longer exists.
+  // A category or subgroup deleted from the sidebar while this note is open: the database already moved the note
+  // (no category; up into the deleted subgroup's parent, which the listing passes back in `note`), so follow it
+  // in the draft too, or the next save would point at a row that no longer exists.
   useEffect(() => {
     const { categoryId: draftCategory, subgroupId: draftSubgroup } = draft.current;
     const categoryGone = draftCategory !== null && !categories.some(category => category.id === draftCategory);
     const subgroupGone = draftSubgroup !== null && !subgroups.some(subgroup => subgroup.id === draftSubgroup);
     if (!categoryGone && !subgroupGone) return;
 
+    const movedTo = note && subgroups.some(subgroup => subgroup.id === note.subgroup_id) ? note.subgroup_id : null;
     draft.current = {
       ...draft.current,
       categoryId: categoryGone ? null : draftCategory,
-      subgroupId: subgroupGone ? null : draftSubgroup,
+      subgroupId: subgroupGone ? movedTo : draftSubgroup,
     };
     setCategoryId(draft.current.categoryId);
     setSubgroupId(draft.current.subgroupId);
-  }, [categories, subgroups]);
+  }, [categories, subgroups, note]);
+
+  // Dragged to another subgroup in the listing while open: the database already has the new place.
+  useEffect(() => {
+    if (!note || note.subgroup_id === draft.current.subgroupId) return;
+    draft.current = { ...draft.current, subgroupId: note.subgroup_id };
+    setSubgroupId(note.subgroup_id);
+  }, [note?.subgroup_id]);
+
+  const ensureSaved = async () => {
+    await save();
+    return noteId.current;
+  };
 
   // Picks an existing category with the same name instead of creating a duplicate.
   const addCategory = async (name: string) => {
@@ -195,7 +263,40 @@ export default function NoteEditor(props: NoteEditorProps) {
     }
   };
 
+  // [[ suggestions: the volume's notes whose title contains what's typed so far.
+  const suggestions = mention
+    ? allNotes
+        .filter(item => item.id !== noteId.current && item.title.trim() && titleKey(item.title).includes(titleKey(mention.query)))
+        .slice(0, 6)
+    : [];
+
+  const trackMention = (textarea: HTMLTextAreaElement) => {
+    if (!on("mentions")) return;
+    const found = mentionAtCaret(textarea.value, textarea.selectionStart);
+    setMention(found ? { ...found, index: 0 } : null);
+  };
+
+  // Completes the [[mention]] with the note's title and puts the caret after it.
+  const completeMention = (target: NoteItem) => {
+    if (!mention) return;
+    const textarea = contentRef.current!;
+    const after = content.slice(textarea.selectionStart);
+    const closing = after.startsWith("]]") ? "" : "]]";
+    const next = content.slice(0, mention.start) + target.title.trim() + closing + after;
+    const caret = mention.start + target.title.trim().length + 2;
+    edit({ content: next });
+    setMention(null);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(caret, caret);
+    });
+  };
+
+  const mentions = on("mentions") ? mentionedNotes(content, notesByTitle(allNotes)).filter(item => item.id !== noteId.current) : [];
+  const mentionedIn = on("mentions") && title.trim() ? backlinks({ id: noteId.current ?? "", title }, allNotes) : [];
+
   const statusText = error || (saveState === "pending" ? "Arquivando..." : "Arquivado");
+  const wordsText = formatWords(countWords(content));
 
   return (
     <article className="note-pane">
@@ -210,9 +311,9 @@ export default function NoteEditor(props: NoteEditorProps) {
             aria-label="Subgrupo"
           >
             <option value="">Sem subgrupo</option>
-            {subgroups.map(subgroup => (
-              <option key={subgroup.id} value={subgroup.id}>
-                {subgroup.name}
+            {subgroupPaths(subgroups).map(path => (
+              <option key={path.id} value={path.id}>
+                {path.label}
               </option>
             ))}
           </select>
@@ -221,6 +322,16 @@ export default function NoteEditor(props: NoteEditorProps) {
           </span>
           <span className="note-pane__name">{title.trim() || "Sem título"}</span>
         </div>
+        {on("versions") && (
+          <button
+            type="button"
+            className="note-pane__tool"
+            aria-pressed={showVersions}
+            onClick={() => setShowVersions(!showVersions)}
+          >
+            Versões
+          </button>
+        )}
         <button
           type="button"
           className="notes__delete-button"
@@ -231,6 +342,16 @@ export default function NoteEditor(props: NoteEditorProps) {
           Excluir
         </button>
       </header>
+
+      {showVersions && on("versions") && (
+        <NoteVersions
+          title={title}
+          content={content}
+          ensureSaved={ensureSaved}
+          onRestore={snapshot => edit({ title: snapshot.title, content: snapshot.content })}
+          onClose={() => setShowVersions(false)}
+        />
+      )}
 
       <section className="note-editor">
         {/* A textarea so long titles wrap; Enter moves on to the note instead of adding a line. */}
@@ -252,6 +373,21 @@ export default function NoteEditor(props: NoteEditorProps) {
         <p className={`note-editor__status${saveState === "error" ? " note-editor__status--error" : ""}`} role="status">
           {statusText}
         </p>
+        {on("status") && (
+          <div className="note-editor__statuses" role="group" aria-label="Status">
+            {NOTE_STATUSES.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className="note-editor__status-option"
+                aria-pressed={status === item.id}
+                onClick={() => edit({ status: status === item.id ? null : item.id })}
+              >
+                <span aria-hidden="true">{item.mark}</span> {item.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="note-editor__categories" role="group" aria-label="Categoria">
           {categories.map(category => (
             <button
@@ -300,14 +436,104 @@ export default function NoteEditor(props: NoteEditorProps) {
             </button>
           )}
         </div>
-        <textarea
-          ref={contentRef}
-          className="note-editor__content"
-          value={content}
-          onChange={event => edit({ content: event.target.value })}
-          placeholder="Escreva o verbete..."
-        />
-        {createdAt && updatedAt && <p className="note-editor__register">{registerText(createdAt, updatedAt)}</p>}
+        {on("timeline") && (
+          <label className="note-editor__when">
+            <span>Quando</span>
+            <input
+              value={timeline}
+              onChange={event => edit({ timeline: event.target.value })}
+              placeholder="Ano 312, inverno"
+              maxLength={80}
+            />
+          </label>
+        )}
+        {on("fields") && (
+          <NoteFields fields={fields} onChange={next => edit({ fields: next })} />
+        )}
+        {on("corkboard") && (
+          <input
+            className="note-editor__synopsis"
+            value={synopsis}
+            onChange={event => edit({ synopsis: event.target.value })}
+            placeholder="Resumo para o quadro (opcional)"
+            aria-label="Resumo"
+            maxLength={300}
+          />
+        )}
+        <div className="note-editor__body">
+          <textarea
+            ref={contentRef}
+            className="note-editor__content"
+            value={content}
+            onChange={event => {
+              edit({ content: event.target.value });
+              trackMention(event.target);
+            }}
+            onSelect={event => trackMention(event.currentTarget)}
+            onBlur={() => setTimeout(() => setMention(null), 150)}
+            onKeyDown={event => {
+              if (!mention || suggestions.length === 0) return;
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                const step = event.key === "ArrowDown" ? 1 : -1;
+                setMention({ ...mention, index: (mention.index + step + suggestions.length) % suggestions.length });
+              } else if (event.key === "Enter" || event.key === "Tab") {
+                event.preventDefault();
+                completeMention(suggestions[mention.index] ?? suggestions[0]!);
+              } else if (event.key === "Escape") {
+                setMention(null);
+              }
+            }}
+            placeholder={on("mentions") ? "Escreva o verbete... Use [[ para citar outro verbete." : "Escreva o verbete..."}
+          />
+          {suggestions.length > 0 && (
+            <ul className="mention-suggest" role="listbox" aria-label="Verbetes para citar">
+              {suggestions.map((item, index) => (
+                <li key={item.id} role="option" aria-selected={index === mention?.index}>
+                  <button
+                    type="button"
+                    onMouseDown={event => {
+                      event.preventDefault();
+                      completeMention(item);
+                    }}
+                  >
+                    {item.title.trim()}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {on("secrets") && /\[segredo\]/i.test(content) && (
+          <p className="note-editor__hint">Os trechos entre [segredo] e [/segredo] ficam de fora da versão dos jogadores.</p>
+        )}
+        {(mentions.length > 0 || mentionedIn.length > 0) && (
+          <div className="note-links">
+            {mentions.length > 0 && (
+              <p>
+                <span className="note-links__label">Menciona</span>
+                {mentions.map(item => (
+                  <button key={item.id} type="button" className="note-links__link" onClick={() => props.onOpenNote(item)}>
+                    {item.title.trim()}
+                  </button>
+                ))}
+              </p>
+            )}
+            {mentionedIn.length > 0 && (
+              <p>
+                <span className="note-links__label">Mencionado em</span>
+                {mentionedIn.map(item => (
+                  <button key={item.id} type="button" className="note-links__link" onClick={() => props.onOpenNote(item)}>
+                    {item.title.trim() || "Sem título"}
+                  </button>
+                ))}
+              </p>
+            )}
+          </div>
+        )}
+        <p className="note-editor__register">
+          {createdAt && updatedAt ? `${registerText(createdAt, updatedAt)} · ${wordsText}` : wordsText}
+        </p>
       </section>
     </article>
   );

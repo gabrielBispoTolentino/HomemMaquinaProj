@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { VOLUME_KINDS, type VolumeKind } from "../lib/volumeKinds";
 import { createWorld, loadWorlds, type WorldItem } from "../lib/worlds";
 import "./CSS/WorldList.css";
 
@@ -20,6 +21,8 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [worldName, setWorldName] = useState("");
   const [worldDescription, setWorldDescription] = useState("");
+  // The model the new volume starts from; asked for in the dialog, nothing picked until the user chooses.
+  const [worldKind, setWorldKind] = useState<VolumeKind["id"] | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [createError, setCreateError] = useState("");
@@ -61,15 +64,20 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       setCreateError("Dê um nome ao volume.");
       return;
     }
+    if (!worldKind) {
+      setCreateError("Escolha um modelo para o volume.");
+      return;
+    }
 
     try {
       setCreating(true);
       setCreateError("");
 
-      const createdWorld = await createWorld(user.id, name, worldDescription.trim() || null);
+      const createdWorld = await createWorld(user.id, name, worldDescription.trim() || null, worldKind);
       setWorlds(currentWorlds => [createdWorld, ...currentWorlds]);
       setWorldName("");
       setWorldDescription("");
+      setWorldKind(null);
       setIsCreateOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao criar volume.";
@@ -159,6 +167,29 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
                   autoFocus
                 />
               </label>
+              {/* The model decides which features start switched on and what the volume comes with. */}
+              <fieldset className="world-list__kinds">
+                <legend className="world-list__field">Modelo</legend>
+                {VOLUME_KINDS.map(kind => (
+                  <label key={kind.id} className="kind-option" style={{ "--world": kind.accent } as React.CSSProperties}>
+                    <input
+                      type="radio"
+                      name="volume-kind"
+                      value={kind.id}
+                      checked={worldKind === kind.id}
+                      onChange={() => setWorldKind(kind.id)}
+                    />
+                    <span className="kind-option__icon" aria-hidden="true">
+                      {kind.icon}
+                    </span>
+                    <span className="kind-option__text">
+                      <span className="kind-option__label">{kind.label}</span>
+                      <span className="kind-option__description">{kind.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+
               <label className="world-list__field">
                 Descrição <span>(opcional)</span>
                 <textarea
@@ -172,8 +203,8 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
 
               {createError && <p className="world-list__status world-list__status--error">{createError}</p>}
 
-              <button type="submit" className="binder-button world-list__dialog-submit" disabled={creating}>
-                {creating ? "Criando..." : "Criar volume"}
+              <button type="submit" className="binder-button world-list__dialog-submit" disabled={creating || !worldKind}>
+                {creating ? "Criando..." : worldKind ? "Criar volume" : "Escolha um modelo"}
               </button>
             </form>
           </section>

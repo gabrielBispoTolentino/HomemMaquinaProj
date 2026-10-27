@@ -61,11 +61,11 @@
 }
 
 /* The dividers: each one's tab sits at a different spot along its top edge,
-   and each divider overlaps the bottom of the one before it. */
+   with room above each one for its tab, so a tab never covers the divider before it. */
 .world-list__list {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--binder-tab-height) - 0.7rem);
+  gap: calc(var(--binder-tab-height) + 0.75rem);
   max-width: 480px;
   margin: 0 auto;
   padding-top: var(--binder-tab-height);
@@ -151,7 +151,9 @@
 }
 
 .world-list__dialog {
-  width: min(100%, 420px);
+  width: min(100%, 520px);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
   border-radius: 18px;
   padding: 1.25rem 1.25rem 1.4rem;
   background: var(--binder-paper);
@@ -249,4 +251,78 @@
   .world-divider:active {
     transform: none;
   }
+}
+
+/* The models a new volume can start from (see volumeKinds.ts). */
+.world-list__kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  border: 0;
+  padding: 0;
+}
+
+.world-list__kinds legend {
+  margin-bottom: 0.4rem;
+}
+
+.kind-option {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1.5px solid #c4cfd7;
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+}
+
+.kind-option:hover {
+  background: var(--binder-paper-shade);
+}
+
+.kind-option:has(input:checked) {
+  border-color: var(--binder-ink);
+  background: var(--world);
+}
+
+.kind-option:has(input:focus-visible) {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 2px;
+}
+
+/* The radio itself stays for keyboards and screen readers; the whole card shows the choice. */
+.kind-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.kind-option__icon {
+  flex: none;
+  width: 2rem;
+  font-size: 1.4rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.kind-option__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.kind-option__label {
+  font-family: var(--binder-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--binder-ink);
+}
+
+.kind-option__description {
+  font-family: var(--binder-text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #4a5966;
 }

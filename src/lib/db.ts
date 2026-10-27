@@ -36,6 +36,12 @@ const SCHEMA = `
     description TEXT,
     accent_color TEXT,
     icon TEXT,
+    -- Words to write per day in this volume; null when no goal is set.
+    daily_goal INTEGER,
+    -- The model the volume was created from (livro, mundo, academico, rpg, branco; see volumeKinds.ts), and the
+    -- features it has switched on, as a JSON array (see features.ts). Both null for volumes made before them.
+    kind TEXT,
+    features TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -49,15 +55,22 @@ const SCHEMA = `
   );
   CREATE UNIQUE INDEX IF NOT EXISTS categories_world_name_idx ON categories (world_id, lower(trim(name)));
 
-  -- Folders within a volume, separate from categories. collapsed is how the listing last showed it.
+  -- Folders within a volume, separate from categories; parent_id nests one inside another (null at the top).
+  -- position orders a subgroup among everything in its parent, notes included (see order.ts).
+  -- collapsed is how the listing last showed it. The app deletes one by first moving its contents up a level
+  -- (deleteSubgroup), so the cascade only applies when a whole volume goes; setting children's parent_id to null
+  -- instead could clash with the unique sibling names partway through.
   CREATE TABLE IF NOT EXISTS subgroups (
     id TEXT PRIMARY KEY,
     world_id TEXT NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
+    parent_id TEXT REFERENCES subgroups (id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    position REAL NOT NULL DEFAULT 0,
     collapsed INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
   );
-  CREATE UNIQUE INDEX IF NOT EXISTS subgroups_world_name_idx ON subgroups (world_id, lower(trim(name)));
+  -- Names were unique per volume before nesting; now they only need to be unique among siblings (see INDEXES).
+  DROP INDEX IF EXISTS subgroups_world_name_idx;
 
   CREATE TABLE IF NOT EXISTS notes (
     id TEXT PRIMARY KEY,
@@ -66,10 +79,37 @@ const SCHEMA = `
     content TEXT NOT NULL DEFAULT '',
     category_id TEXT REFERENCES categories (id) ON DELETE SET NULL,
     subgroup_id TEXT REFERENCES subgroups (id) ON DELETE SET NULL,
+    position REAL NOT NULL DEFAULT 0,
+    -- ideia, rascunho, revisao or final (see writing.ts); null when not tracked.
+    status TEXT,
+    -- A line or two about the note, shown on its corkboard card.
+    synopsis TEXT NOT NULL DEFAULT '',
+    -- Custom fields, a JSON array of { key, value } (see NoteFields.tsx).
+    fields TEXT NOT NULL DEFAULT '[]',
+    -- When it happens, in the volume's own terms ("Ano 312, inverno"), for the timeline.
+    timeline TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS notes_world_idx ON notes (world_id, updated_at);
+
+  -- Saved versions of a note, to compare with or go back to.
+  CREATE TABLE IF NOT EXISTS note_snapshots (
+    id TEXT PRIMARY KEY,
+    note_id TEXT NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS note_snapshots_note_idx ON note_snapshots (note_id, created_at);
+
+  -- Net words written in a volume per local day ("2026-10-27"), for the daily goal and streak.
+  CREATE TABLE IF NOT EXISTS writing_days (
+    world_id TEXT NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
+    day TEXT NOT NULL,
+    words INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (world_id, day)
+  );
 
   -- Users whose worlds were already copied over from Supabase (see supabaseImport.ts).
   CREATE TABLE IF NOT EXISTS supabase_imports (
@@ -78,17 +118,43 @@ const SCHEMA = `
   );
 `;
 
+// Milliseconds since 1970 for a stored ISO timestamp, in SQL.
+const EPOCH_MS = "(julianday(created_at) - 2440587.5) * 86400000";
+
 // Columns added after their table was first released. CREATE TABLE IF NOT EXISTS leaves existing tables alone,
-// so databases created before then get them here.
-const ADDED_COLUMNS = [
+// so databases created before then get them here, and `fill` sets them on the rows already there.
+const ADDED_COLUMNS: { table: string; column: string; definition: string; fill?: string }[] = [
   { table: "notes", column: "subgroup_id", definition: "TEXT REFERENCES subgroups (id) ON DELETE SET NULL" },
+  { table: "subgroups", column: "parent_id", definition: "TEXT REFERENCES subgroups (id) ON DELETE CASCADE" },
+  // Existing items keep the order they were shown in: subgroups first, then notes, each by creation.
+  {
+    table: "subgroups",
+    column: "position",
+    definition: "REAL NOT NULL DEFAULT 0",
+    fill: `UPDATE subgroups SET position = ${EPOCH_MS} - 1e13`,
+  },
+  { table: "notes", column: "position", definition: "REAL NOT NULL DEFAULT 0", fill: `UPDATE notes SET position = ${EPOCH_MS}` },
+  { table: "notes", column: "status", definition: "TEXT" },
+  { table: "notes", column: "synopsis", definition: "TEXT NOT NULL DEFAULT ''" },
+  { table: "worlds", column: "daily_goal", definition: "INTEGER" },
+  { table: "worlds", column: "kind", definition: "TEXT" },
+  { table: "worlds", column: "features", definition: "TEXT" },
+  { table: "notes", column: "fields", definition: "TEXT NOT NULL DEFAULT '[]'" },
+  { table: "notes", column: "timeline", definition: "TEXT NOT NULL DEFAULT ''" },
 ];
 
+// Indexes on added columns, created once the columns exist.
+const INDEXES = `
+  CREATE UNIQUE INDEX IF NOT EXISTS subgroups_sibling_name_idx
+    ON subgroups (world_id, coalesce(parent_id, ''), lower(trim(name)));
+`;
+
 async function addMissingColumns(driver: Driver) {
-  for (const { table, column, definition } of ADDED_COLUMNS) {
+  for (const { table, column, definition, fill } of ADDED_COLUMNS) {
     const columns = await driver.all(`PRAGMA table_info(${table})`, []);
     if (!columns.some(info => info.name === column)) {
       await driver.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      if (fill) await driver.exec(fill);
     }
   }
 }
@@ -208,6 +274,7 @@ async function openDriver(): Promise<Driver> {
   await driver.exec("PRAGMA foreign_keys = ON;");
   await driver.exec(SCHEMA);
   await addMissingColumns(driver);
+  await driver.exec(INDEXES);
   return driver;
 }
 

@@ -1,0 +1,639 @@
+@import "./Binder.css";
+
+/* The book-writing views in the middle of a volume: manuscript, corkboard, note versions, and the daily goal. */
+
+/* Small text buttons used across these views, on the dark slate. */
+.writing-button {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.writing-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.writing-button:focus-visible {
+  outline: 2px solid var(--binder-paper);
+  outline-offset: 2px;
+}
+
+.writing-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.writing-button--accent {
+  background: var(--world);
+  color: var(--binder-ink);
+}
+
+.writing-button--accent:hover {
+  background: var(--world);
+  filter: brightness(1.06);
+}
+
+.writing-button--quiet {
+  background: transparent;
+  color: var(--binder-on-slate-muted);
+}
+
+/* Manuscript: the subgroup as one continuous text on a page, like a printed book. */
+.manuscript-pane {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 760px;
+  min-height: 0;
+}
+
+.manuscript-pane__toolbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.manuscript-pane__words {
+  flex: 1;
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--binder-on-slate-muted);
+}
+
+.manuscript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border-radius: 18px;
+  padding: 2.5rem clamp(1.25rem, 6vw, 4rem) 3rem;
+  background: var(--binder-paper);
+  color: var(--binder-ink);
+  font-family: var(--binder-text);
+  font-size: 1.08rem;
+  line-height: 1.8;
+  scrollbar-color: #b9c5ce transparent;
+}
+
+.manuscript__title {
+  margin: 0 0 2rem;
+  font-family: var(--binder-display);
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  text-align: center;
+}
+
+/* A subgroup's name, opening its part of the text. */
+.manuscript__part {
+  margin: 2.5rem 0 1rem;
+  font-family: var(--binder-display);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.1;
+  text-align: center;
+}
+
+h2.manuscript__part {
+  font-size: 2rem;
+}
+
+h3.manuscript__part,
+h4.manuscript__part,
+h5.manuscript__part,
+h6.manuscript__part {
+  font-size: 1.5rem;
+}
+
+.manuscript__note + .manuscript__note {
+  margin-top: 2rem;
+}
+
+.manuscript__heading {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+/* The title opens the note; it only looks like a link on hover. */
+.manuscript__heading button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--binder-display);
+  font-size: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.manuscript__heading button:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.manuscript__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.manuscript__empty {
+  color: var(--binder-muted);
+  text-align: center;
+}
+
+/* A game master's secret left in: marked off, so it's clear the players won't see it. */
+.manuscript__secret {
+  display: block;
+  margin: 0.5rem 0;
+  border-left: 3px solid #b48a3c;
+  padding: 0.3rem 0 0.3rem 0.8rem;
+  background: rgba(180, 138, 60, 0.12);
+  font-style: italic;
+}
+
+.manuscript__secret::before {
+  content: "Segredo do mestre";
+  display: block;
+  font-family: var(--binder-display);
+  font-size: 0.8rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a6a2e;
+}
+
+.manuscript-pane__players {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--binder-on-slate);
+  cursor: pointer;
+}
+
+.manuscript-pane__players input {
+  accent-color: var(--world);
+}
+
+/* Corkboard: index cards pinned up in order. */
+.board {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1100px;
+  min-height: 0;
+}
+
+.board__head {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.board__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--binder-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board__kind {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.85rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--binder-on-slate-muted);
+}
+
+/* Room above each card for its category tab. */
+.board__cards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  align-content: start;
+  gap: 1.75rem 1rem;
+  margin: 0;
+  border-radius: 18px;
+  padding: 2rem 1.25rem 1.5rem;
+  list-style: none;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 14px 14px,
+    var(--binder-slate-deep);
+}
+
+.board__empty {
+  grid-column: 1 / -1;
+  color: var(--binder-on-slate-muted);
+}
+
+.board-card {
+  position: relative;
+  width: 100%;
+  min-height: 9rem;
+  border: 0;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 0.9rem 0.8rem;
+  background: #fafbfb;
+  color: var(--binder-ink);
+  text-align: left;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 8px 18px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.board-card:hover {
+  background: #fff;
+}
+
+.board-card:focus-visible {
+  outline: 3px solid var(--binder-paper);
+  outline-offset: 3px;
+}
+
+.board-card__tab {
+  position: absolute;
+  bottom: 100%;
+  right: 0.75rem;
+  max-width: 70%;
+  border-radius: 7px 7px 0 0;
+  padding: 0.3rem 0.6rem 0.25rem;
+  background: var(--category);
+  font-family: var(--binder-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The heading line of an index card, ruled in the volume's color. */
+.board-card__title {
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--world);
+  font-family: var(--binder-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.board-card__title--untitled {
+  font-style: italic;
+  color: var(--binder-muted);
+}
+
+.board-card__text {
+  --rule: 1.5rem;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--binder-text);
+  font-size: 0.9rem;
+  line-height: var(--rule);
+  color: #4a5966;
+  white-space: pre-line;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--rule) - 1px),
+    #d7e1e7 calc(var(--rule) - 1px),
+    #d7e1e7 var(--rule)
+  );
+}
+
+.board-card__status {
+  align-self: flex-start;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  padding: 0.15rem 0.35rem 0.1rem;
+  font-family: var(--binder-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #5b7182;
+  transform: rotate(-2deg);
+}
+
+/* A subgroup on the board: a folder, opened by clicking. */
+.board-card--folder {
+  justify-content: flex-end;
+  min-height: 7rem;
+  border-radius: 4px 14px 4px 4px;
+  background: var(--world);
+}
+
+.board-card--folder:hover {
+  background: var(--world);
+  filter: brightness(1.05);
+}
+
+.board-card--folder .board-card__title {
+  border-bottom: 0;
+  font-size: 1.5rem;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.board-card__meta {
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Where a dragged card would land: a bar beside the card, or a ring around a folder it would go into. */
+.board-card[data-drop-where="before"] {
+  box-shadow: -6px 0 0 -2px var(--world), 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+.board-card[data-drop-where="after"] {
+  box-shadow: 6px 0 0 -2px var(--world), 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+.board-card[data-drop-where="inside"] {
+  outline: 3px dashed var(--binder-paper);
+  outline-offset: 4px;
+}
+
+.board__cards[data-drop-where="inside"] {
+  outline: 2px dashed rgba(255, 255, 255, 0.35);
+  outline-offset: -6px;
+}
+
+/* Versions of a note, between the note's header and its page. */
+.versions {
+  flex: none;
+  max-height: 45vh;
+  overflow-y: auto;
+  margin-bottom: 0.75rem;
+  border-radius: 14px;
+  padding: 0.85rem 1rem 1rem;
+  background: var(--binder-slate-deep);
+}
+
+.versions__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.versions__title {
+  flex: 1;
+  min-width: 10rem;
+  margin: 0;
+  font-family: var(--binder-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.versions__error {
+  margin: 0 0 0.5rem;
+  color: #f5a7a1;
+}
+
+.versions__empty {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--binder-on-slate-muted);
+}
+
+.versions__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.versions__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.versions__when {
+  flex: 1;
+  min-width: 10rem;
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.versions__words {
+  margin-left: 0.6rem;
+  color: var(--binder-on-slate-muted);
+}
+
+/* The comparison, paragraph by paragraph. */
+.versions__diff {
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  background: var(--binder-paper);
+  color: var(--binder-ink);
+  font-family: var(--binder-text);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.versions__diff p,
+.versions__diff ins,
+.versions__diff del {
+  display: block;
+  margin: 0 0 0.6rem;
+  white-space: pre-wrap;
+}
+
+.versions__diff p {
+  color: #6b7a86;
+}
+
+.versions__diff ins {
+  border-left: 3px solid #4f9a7a;
+  padding-left: 0.6rem;
+  background: rgba(79, 154, 122, 0.12);
+  text-decoration: none;
+}
+
+.versions__diff del {
+  border-left: 3px solid #c0544a;
+  padding-left: 0.6rem;
+  background: rgba(192, 84, 74, 0.1);
+}
+
+.versions__legend {
+  font-family: var(--binder-display);
+  font-size: 0.9rem;
+}
+
+.versions__legend del,
+.versions__legend ins {
+  display: inline-block;
+  margin: 0 0.5rem 0 0;
+}
+
+/* Today's words, under the sidebar's band. */
+.goal {
+  flex: none;
+  padding: 0.6rem 0.85rem 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--binder-display);
+}
+
+.goal__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+}
+
+.goal__today {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.goal__streak {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--world);
+}
+
+.goal__edit {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--binder-on-slate-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.goal__edit:hover {
+  color: var(--binder-on-slate);
+}
+
+.goal__input {
+  width: 6.5rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--binder-on-slate);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.goal__input:focus {
+  outline: 2px solid var(--world);
+}
+
+.goal__bar {
+  height: 5px;
+  margin-top: 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.goal__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--world);
+}
+
+/* Printing a manuscript (to paper or PDF) prints only the manuscript, in black on white. */
+@media print {
+  :root,
+  body {
+    background: #fff;
+  }
+
+  .volume {
+    display: block;
+    height: auto;
+    background: none;
+  }
+
+  .volume__sidebar,
+  .volume__backdrop,
+  .volume__blank,
+  .manuscript-pane__toolbar,
+  .drag-ghost {
+    display: none !important;
+  }
+
+  .volume__main {
+    display: block;
+    padding: 0;
+  }
+
+  .manuscript-pane {
+    max-width: none;
+  }
+
+  .manuscript {
+    overflow: visible;
+    border-radius: 0;
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+
+  .manuscript__part {
+    break-after: avoid;
+  }
+
+  .manuscript__heading {
+    break-after: avoid;
+  }
+}
