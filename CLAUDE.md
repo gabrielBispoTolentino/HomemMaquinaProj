@@ -59,7 +59,8 @@ When adding a feature:
 
 ## User activities (Atividades do Usuário)
 
-- Note management (full CRUD), with autosave
+- Note management (full CRUD), with autosave; deleting moves a note to the volume's **Lixeira** (`deleted_at` in `notes.ts`), with "Desfazer" right away and Restaurar later
+- Volume management: name, description, color and icon edited in Recursos; deleting a volume asks for its name to be typed
 - Quick categorization and filing into subgroups (menu or drag and drop)
 - Mention & link other notes inline
 - Instant search across title, text, synopsis, fields, category and subgroup path; filter by category and status
@@ -69,7 +70,12 @@ When adding a feature:
 
 - **Editor**: plain text with `[[mentions]]` and `[segredo]` markers for now; a WYSIWYG/Markdown editor is still a goal.
 - **Distraction-free focus (Foco Sem Distrações)**: writing comes first; keep chrome minimal while editing.
-- **Two panes**: the sidebar lists the volume (subgroups and notes); the middle shows the open note or a volume view (manuscript, corkboard, timeline, map, name check, GM table, Recursos), and is blank when nothing is open.
+- **Two panes**: the sidebar lists the volume (subgroups and notes); the middle shows the open note or a volume view (manuscript, corkboard, timeline, map, name check, GM table, Recursos, Lixeira, Ajuda), and is blank when nothing is open. A volume reopens on what was open when it was left (not Recursos); the first volume ever opened on a device starts on Ajuda.
+- **Help (Ajuda, `HelpView`)**: explains the archive's terms, writing, organizing, undoing, phone use and keyboard shortcuts, and only describes features the volume has on. Keep it up to date when adding a feature or shortcut.
+- **Confirmations and notices** go through `confirmAction()` and `notify()` (`src/pages/Dialogs.tsx`), never `window.confirm`/`alert`. Prefer undo (a notice with "Desfazer") over asking first; confirm only what can't be undone, say what happens to the contents, and mark destructive ones `danger`.
+- **Keyboard shortcuts** (desktop): Ctrl/⌘+K search, Alt+N new note, Ctrl/⌘+S save now, Ctrl/⌘+\ toggle the list, Ctrl/⌘+/ Ajuda, Esc cancels.
+- **Phones**: touch targets at least 44px, nothing that needs hover, and check new screens at 390px wide.
+- **Per-device preferences** (`src/lib/prefs.ts`, localStorage): reading text size (`--text-scale`) and one-time introductions.
 - **Collapsible side menu (Menu Lateral Recolhível)**: on wide screens the sidebar can be hidden (remembered). On phones it's a drawer over the note, closed when the volume opens; the Android back button closes the drawer, then the open view, then the volume.
 - **Local-first storage**: notes save automatically to a local SQLite database. Cloud sync (below) is opt-in, runs in the background and must never slow down local editing.
 

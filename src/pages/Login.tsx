@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { signIn, type LoggedUser } from "../lib/auth";
 import "./CSS/Login.css";
+import PasswordInput from "./PasswordInput.tsx";
 
 type LoginProps = {
   onGoToCadastro: () => void;
@@ -56,7 +57,7 @@ export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginP
           <div className="auth-page__card-wrap">
             <div className="auth-page__title-wrap">
               <div className="auth-page__title">
-                Bem
+                Bem-
                 <br />
                 vindo.
               </div>
@@ -67,28 +68,40 @@ export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginP
 
               <div className="auth-page__fields">
                 <div>
-                  <label className="auth-page__label">Email</label>
+                  <label className="auth-page__label" htmlFor="login-email">
+                    Email
+                  </label>
                   <input
+                    id="login-email"
                     type="email"
                     className="auth-page__input"
                     value={email}
                     onChange={event => setEmail(event.target.value)}
+                    autoComplete="email"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    enterKeyHint="next"
                   />
                 </div>
 
                 <div>
-                  <label className="auth-page__label">Senha</label>
-                  <input
-                    type="password"
-                    className="auth-page__input"
-                    value={password}
-                    onChange={event => setPassword(event.target.value)}
-                  />
+                  <label className="auth-page__label" htmlFor="login-password">
+                    Senha
+                  </label>
+                  <PasswordInput id="login-password" value={password} onChange={setPassword} autoComplete="current-password" />
                 </div>
               </div>
 
-              {error && <p className="auth-page__message auth-page__message--error">{error}</p>}
-              {success && <p className="auth-page__message auth-page__message--success">{success}</p>}
+              {error && (
+                <p className="auth-page__message auth-page__message--error" role="alert">
+                  {error}
+                </p>
+              )}
+              {success && (
+                <p className="auth-page__message auth-page__message--success" role="status">
+                  {success}
+                </p>
+              )}
 
               <button type="submit" className="auth-page__submit" disabled={loading}>
                 {loading ? "Entrando..." : "Login"}

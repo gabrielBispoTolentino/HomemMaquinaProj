@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { categoryColor, createCategory, findCategoryByName, type CategoryItem } from "../lib/categories";
 import { featureOn, type FeatureId } from "../lib/features";
 import { backlinks, mentionedNotes, notesByTitle, titleKey } from "../lib/mentions";
-import { createNote, deleteNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import { createNote, trashNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
 import { endPosition } from "../lib/order";
 import { subgroupPaths, type SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords, NOTE_STATUSES } from "../lib/writing";
@@ -32,7 +32,8 @@ type NoteEditorProps = {
   onCategoryCreated: (category: CategoryItem) => void;
   // Called after every save, so the listing shows the new title, subgroup and category.
   onSaved: (note: NoteItem) => void;
-  onDeleted: (id: string) => void;
+  // Moved to the Lixeira; the volume offers to undo it.
+  onDeleted: (id: string, title: string) => void;
   onClose: () => void;
 };
 
@@ -244,6 +245,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     };
   }, []);
 
+  // No confirmation: the note goes to the Lixeira, and the volume offers to undo it right away.
   const handleDelete = async () => {
     if (!noteId.current) {
       dirty.current = false;
@@ -251,16 +253,12 @@ export default function NoteEditor(props: NoteEditorProps) {
       return;
     }
 
-    if (!window.confirm("Excluir este verbete?")) return;
-
     try {
       setDeleting(true);
-      if (timer.current) clearTimeout(timer.current);
-      dirty.current = false;
-      await queue.current;
-
-      await deleteNote(noteId.current);
-      props.onDeleted(noteId.current);
+      // Pending edits are saved first, so restoring brings back the latest text.
+      await save();
+      await trashNote(noteId.current);
+      props.onDeleted(noteId.current, draft.current.title);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao excluir verbete.");
       setDeleting(false);
@@ -315,7 +313,16 @@ export default function NoteEditor(props: NoteEditorProps) {
   const wordsText = formatWords(countWords(content));
 
   return (
-    <article className="note-pane">
+    <article
+      className="note-pane"
+      onKeyDown={event => {
+        // Saving is automatic; Ctrl+S (⌘S) just does it now, for those who press it out of habit.
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+          event.preventDefault();
+          save();
+        }
+      }}
+    >
       <header className="note-pane__head">
         {props.headStart}
         {/* Where the note is filed: Subgrupo / Título. The subgroup is picked here. */}
@@ -348,15 +355,6 @@ export default function NoteEditor(props: NoteEditorProps) {
             Versões
           </button>
         )}
-        <button
-          type="button"
-          className="notes__delete-button"
-          onClick={handleDelete}
-          disabled={deleting}
-          aria-label="Excluir verbete"
-        >
-          Excluir
-        </button>
       </header>
 
       {showVersions && on("versions") && (
@@ -561,9 +559,15 @@ export default function NoteEditor(props: NoteEditorProps) {
             )}
           </div>
         )}
-        <p className="note-editor__register">
-          {createdAt && updatedAt ? `${registerText(createdAt, updatedAt)} · ${wordsText}` : wordsText}
-        </p>
+        {/* Kept away from the everyday buttons at the top, so it isn't pressed by mistake. */}
+        <footer className="note-editor__foot">
+          <p className="note-editor__register">
+            {createdAt && updatedAt ? `${registerText(createdAt, updatedAt)} · ${wordsText}` : wordsText}
+          </p>
+          <button type="button" className="note-editor__trash" onClick={handleDelete} disabled={deleting}>
+            {noteId.current ? "Mover para a Lixeira" : "Descartar"}
+          </button>
+        </footer>
       </section>
     </article>
   );

@@ -7,8 +7,10 @@
 
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { applyTextSize } from "./lib/prefs";
 
 function start() {
+  applyTextSize();
   const root = createRoot(document.getElementById("root")!);
   root.render(<App />);
 }

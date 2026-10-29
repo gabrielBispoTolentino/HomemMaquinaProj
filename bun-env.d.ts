@@ -28,3 +28,11 @@ declare module "*.module.css" {
   const classes: { readonly [key: string]: string };
   export = classes;
 }
+
+declare module "*.jpg" {
+  /**
+   * A path to the image file (imported with `with { type: "file" }`)
+   */
+  const path: string;
+  export default path;
+}

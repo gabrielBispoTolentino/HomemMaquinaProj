@@ -105,6 +105,61 @@
   border-color: #3d6c9b;
 }
 
+.auth-page__input:focus-visible {
+  box-shadow: 0 0 0 3px rgba(61, 108, 155, 0.35);
+}
+
+/* The password with its "Mostrar" button inside the pill, on the right. */
+.auth-page__password {
+  position: relative;
+}
+
+.auth-page__password .auth-page__input {
+  padding-right: 6rem;
+}
+
+.auth-page__reveal {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  min-width: 44px;
+  min-height: 40px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 999px;
+  padding: 0 0.85rem;
+  background: transparent;
+  color: #3d5a73;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-page__reveal:hover {
+  background: rgba(61, 108, 155, 0.1);
+}
+
+.auth-page__reveal:focus-visible {
+  outline: 2px solid #3d6c9b;
+}
+
+/* The password rule, shown before it's broken; turns green once met. */
+.auth-page__hint {
+  margin: 0.4rem 0 0 1rem;
+  font-size: 0.9rem;
+  color: #55606b;
+}
+
+.auth-page__hint--ok {
+  color: #2f6b45;
+}
+
+.auth-page__optional {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #55606b;
+}
+
 .auth-page__submit {
   width: 100%;
   margin-top: 1.5rem;
@@ -122,6 +177,18 @@
 
 .auth-page__submit:hover {
   filter: brightness(1.06);
+}
+
+.auth-page__submit:focus-visible,
+.auth-page__switcher-link:focus-visible,
+.auth-page__arrow:focus-visible {
+  outline: 3px solid #3d6c9b;
+  outline-offset: 2px;
+}
+
+.auth-page__submit:disabled {
+  cursor: wait;
+  opacity: 0.75;
 }
 
 .auth-page__switcher {
@@ -150,12 +217,17 @@
   color: #111827;
 }
 
+/* Errors and successes differ in color and mark, not only in wording. */
 .auth-page__message--error {
-  color: #111827;
+  border-left: 4px solid #a3322a;
+  padding-left: 0.6rem;
+  color: #8a2922;
 }
 
 .auth-page__message--success {
-  color: #111827;
+  border-left: 4px solid #2f6b45;
+  padding-left: 0.6rem;
+  color: #24553a;
 }
 
 @media (min-width: 640px) {

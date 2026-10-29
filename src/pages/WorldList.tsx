@@ -3,6 +3,7 @@ import { getSyncStatus, setSyncEnabled, subscribeSync, syncNow, type SyncStatus 
 import { VOLUME_KINDS, type VolumeKind } from "../lib/volumeKinds";
 import { createWorld, loadWorlds, type WorldItem } from "../lib/worlds";
 import "./CSS/WorldList.css";
+import { confirmAction } from "./Dialogs.tsx";
 
 type LoggedUser = {
   id: number;
@@ -76,7 +77,16 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
 
   const toggleSync = async () => {
     if (!user) return;
-    if (sync.enabled && !window.confirm("Parar de sincronizar neste aparelho? A cópia na nuvem continua guardada.")) return;
+    if (
+      sync.enabled &&
+      !(await confirmAction({
+        title: "Parar de sincronizar neste aparelho?",
+        message: "A cópia na nuvem continua guardada, e o que você escrever daqui em diante fica só neste aparelho.",
+        confirmLabel: "Parar de sincronizar",
+      }))
+    ) {
+      return;
+    }
     try {
       await setSyncEnabled(user.id, !sync.enabled);
     } catch (err) {

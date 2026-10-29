@@ -1,10 +1,11 @@
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import "./index.css";
 import { signOut, type LoggedUser } from "./lib/auth";
 import { endSyncSession, setSyncEnabled, startSyncSession } from "./lib/sync";
 import Cadastrar from "./pages/Cadastrar.tsx";
+import { closeOpenDialog, DialogHost } from "./pages/Dialogs.tsx";
 import Login from "./pages/Login.tsx";
 import MainPen from "./pages/MainPen.tsx";
 import SyncChoice from "./pages/SyncChoice.tsx";
@@ -54,6 +55,8 @@ export function App() {
     if (!Capacitor.isNativePlatform()) return;
 
     const listener = CapacitorApp.addListener("backButton", () => {
+      // An open confirmation is closed first, as a cancel.
+      if (closeOpenDialog()) return;
       if (screen === "notes" && volumeBack.current?.()) return;
 
       const parent = parentScreen[screen];
@@ -69,57 +72,70 @@ export function App() {
     };
   }, [screen, currentUser]);
 
-  if (screen === "login") {
-    return (
-      <Login
-        onGoToCadastro={() => setScreen("cadastro")}
-        onBack={() => setScreen("main")}
-        onLoginSuccess={logIn}
-      />
-    );
-  }
+  return (
+    <>
+      {renderScreen()}
+      <DialogHost />
+    </>
+  );
 
-  if (screen === "sync" && currentUser) {
-    return (
-      <SyncChoice
-        userName={currentUser.name}
-        onBack={() => goToScreen("main")}
-        onChoose={async enabled => {
-          await setSyncEnabled(currentUser.id, enabled);
-          setScreen("worlds");
-        }}
-      />
-    );
-  }
+  function renderScreen(): ReactNode {
+    if (screen === "login") {
+      return (
+        <Login
+          onGoToCadastro={() => setScreen("cadastro")}
+          onBack={() => setScreen("main")}
+          onLoginSuccess={logIn}
+        />
+      );
+    }
 
-  if (screen === "cadastro") {
-    return <Cadastrar onBack={() => setScreen("main")} onGoToLogin={() => setScreen("login")} />;
-  }
+    if (screen === "sync" && currentUser) {
+      return (
+        <SyncChoice
+          userName={currentUser.name}
+          onBack={() => goToScreen("main")}
+          onChoose={async enabled => {
+            await setSyncEnabled(currentUser.id, enabled);
+            setScreen("worlds");
+          }}
+        />
+      );
+    }
 
-  if (screen === "notes" && currentWorld) {
-    return (
-      <WorldNotes
-        world={currentWorld}
-        onBack={() => setScreen("worlds")}
-        backHandler={volumeBack}
-      />
-    );
-  }
+    if (screen === "cadastro") {
+      return <Cadastrar onBack={() => setScreen("main")} onGoToLogin={() => setScreen("login")} />;
+    }
 
-  if (screen === "worlds") {
-    return (
-      <WorldList
-        user={currentUser}
-        onBack={() => goToScreen("main")}
-        onOpenWorld={world => {
-          setCurrentWorld(world);
-          setScreen("notes");
-        }}
-      />
-    );
-  }
+    if (screen === "notes" && currentWorld) {
+      return (
+        <WorldNotes
+          world={currentWorld}
+          onBack={() => setScreen("worlds")}
+          onDeleted={() => {
+            setCurrentWorld(null);
+            setScreen("worlds");
+          }}
+          backHandler={volumeBack}
+        />
+      );
+    }
 
-  return <MainPen onEntrar={() => setScreen("login")} onGoToCadastro={() => setScreen("cadastro")} />;
+    if (screen === "worlds") {
+      return (
+        <WorldList
+          user={currentUser}
+          onBack={() => goToScreen("main")}
+          onOpenWorld={world => {
+            setCurrentWorld(world);
+            setScreen("notes");
+          }}
+        />
+      );
+    }
+
+    return <MainPen onEntrar={() => setScreen("login")} onGoToCadastro={() => setScreen("cadastro")} />;
+  }
 }
 
 export default App;

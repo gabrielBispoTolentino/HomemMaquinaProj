@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { categoryColor, createCategory, findCategoryByName, loadCategories, type CategoryItem } from "../lib/categories";
 import { featureOn, type FeatureId } from "../lib/features";
-import { loadNotes, moveNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import { loadNotes, moveNote, restoreNote, type NoteDraft, type NoteItem } from "../lib/notes";
 import { childrenOf, endPosition, placeAmong, type Placement } from "../lib/order";
 import {
   createSubgroup,
@@ -18,20 +18,33 @@ import {
 } from "../lib/subgroups";
 import { loadWritingStats, NOTE_STATUSES, setDailyGoal, type WritingStats } from "../lib/writing";
 import { templatesFor, type NoteTemplate } from "../lib/volumeKinds";
-import { setWorldFeatures, setWorldKind, worldFeatures, type WorldItem } from "../lib/worlds";
+import { markSeen, seen } from "../lib/prefs";
+import {
+  deleteWorld,
+  setWorldFeatures,
+  setWorldKind,
+  updateWorld,
+  worldContents,
+  worldFeatures,
+  type WorldDetails,
+  type WorldItem,
+} from "../lib/worlds";
 import CategoryManager from "./CategoryManager.tsx";
 import Corkboard from "./Corkboard.tsx";
 import GameTable from "./GameTable.tsx";
+import HelpView from "./HelpView.tsx";
 import ManuscriptView from "./ManuscriptView.tsx";
 import NameCheck from "./NameCheck.tsx";
 import NoteEditor from "./NoteEditor.tsx";
 import NoteTree from "./NoteTree.tsx";
 import RelationshipMap from "./RelationshipMap.tsx";
 import TimelineView from "./TimelineView.tsx";
+import TrashView from "./TrashView.tsx";
 import VolumeSettings from "./VolumeSettings.tsx";
 import { useDragDrop, type DragSource } from "./useDragDrop.tsx";
 import WritingGoal from "./WritingGoal.tsx";
 import "./CSS/Notes.css";
+import { confirmAction, isDialogOpen, notify } from "./Dialogs.tsx";
 
 // What the middle pane shows: a note (id is null for a new note until its first save, and preset holds a
 // template's starting text), a subgroup (null for the whole volume) read as a manuscript or pinned up on the
@@ -40,7 +53,10 @@ import "./CSS/Notes.css";
 type View =
   | { kind: "note"; id: string | null; subgroupId: string | null; preset?: Partial<NoteDraft>; key: number }
   | { kind: "manuscript" | "board"; subgroupId: string | null; key: number }
-  | { kind: "settings" | "timeline" | "graph" | "names" | "table"; key: number };
+  | { kind: "settings" | "timeline" | "graph" | "names" | "table" | "trash" | "help"; key: number };
+
+// What's remembered of the open view between visits to a volume (see LAST_VIEW_KEY).
+type SavedView = { kind: View["kind"]; id?: string | null; subgroupId?: string | null };
 
 // The volume-wide views, as buttons under the volume's name, each shown when its feature is on.
 const VOLUME_VIEWS = [
@@ -61,6 +77,8 @@ export type DropIntent =
 type WorldNotesProps = {
   world: WorldItem;
   onBack: () => void;
+  // The volume was deleted from its Recursos.
+  onDeleted: () => void;
   // Set while this screen is shown: App calls it on the Android back button, and it returns true when it
   // handled the press (closed the sidebar or what's open in the middle) instead of leaving the volume.
   backHandler: RefObject<(() => boolean) | null>;
@@ -69,6 +87,27 @@ type WorldNotesProps = {
 let viewCount = 0;
 
 const SIDEBAR_HIDDEN_KEY = "archivist.sidebarHidden";
+
+// What was open in each volume when it was last left, so coming back picks up where the user stopped.
+const LAST_VIEW_KEY = (worldId: string) => `archivist.lastView.${worldId}`;
+
+function loadSavedView(worldId: string): SavedView | null {
+  try {
+    const stored = localStorage.getItem(LAST_VIEW_KEY(worldId));
+    return stored ? (JSON.parse(stored) as SavedView) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeView(worldId: string, view: SavedView | null) {
+  try {
+    if (view) localStorage.setItem(LAST_VIEW_KEY(worldId), JSON.stringify(view));
+    else localStorage.removeItem(LAST_VIEW_KEY(worldId));
+  } catch {
+    // Only a convenience: the volume just opens blank next time.
+  }
+}
 
 // Matches the phone layout in Notes.css, where the sidebar is a drawer over the note.
 const NARROW_QUERY = "(max-width: 799px)";
@@ -94,7 +133,7 @@ function normalize(value: string) {
 
 // The open volume: the listing in a sidebar on the left and, in the middle, the open note, manuscript or
 // corkboard. On phones the sidebar is a drawer over the middle.
-export default function WorldNotes({ world: initialWorld, onBack, backHandler }: WorldNotesProps) {
+export default function WorldNotes({ world: initialWorld, onBack, onDeleted, backHandler }: WorldNotesProps) {
   // A copy, since the volume's features and model change here.
   const [world, setWorld] = useState(initialWorld);
   const features = worldFeatures(world);
@@ -115,6 +154,9 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
   // Where the new-subgroup field shows: undefined for nowhere, null for the top of the volume.
   const [addingIn, setAddingIn] = useState<string | null | undefined>(undefined);
   const [sidebarHidden, setSidebarHidden] = useState(initialSidebarHidden);
+  // Goes up whenever a note enters or leaves the Lixeira from elsewhere, so an open Lixeira reloads.
+  const [trashChanges, setTrashChanges] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
   const accent = world.accent_color ?? "#f5a7a1";
   const openNote = view?.kind === "note" ? view : null;
 
@@ -164,6 +206,7 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
         setSubgroups(worldSubgroups);
         setCategories(worldCategories);
         setStats(worldStats);
+        reopen(worldNotes, worldSubgroups);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao carregar verbetes.";
         setError(message);
@@ -174,6 +217,68 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
 
     load();
   }, [world.id]);
+
+  // The first volume ever opened on this device starts with the guide; any other picks up where it was left,
+  // as long as what was open is still there.
+  const reopen = (worldNotes: NoteItem[], worldSubgroups: SubgroupItem[]) => {
+    if (!seen("volumeGuide")) {
+      markSeen("volumeGuide");
+      setView({ kind: "help", key: ++viewCount });
+      return;
+    }
+    const saved = loadSavedView(world.id);
+    if (!saved) return;
+    if (saved.kind === "note") {
+      const note = worldNotes.find(item => item.id === saved.id);
+      if (note) setView({ kind: "note", id: note.id, subgroupId: note.subgroup_id, key: ++viewCount });
+    } else if (saved.kind === "manuscript" || saved.kind === "board") {
+      const subgroupId = saved.subgroupId ?? null;
+      if (subgroupId === null || worldSubgroups.some(item => item.id === subgroupId)) {
+        setView({ kind: saved.kind, subgroupId, key: ++viewCount });
+      }
+    } else if (saved.kind !== "settings") {
+      setView({ kind: saved.kind, key: ++viewCount });
+    }
+  };
+
+  // Remembers what's open, once the volume has loaded (before that the view is still being restored). A quick
+  // visit to Recursos, or a new note not saved yet, keeps what was remembered before.
+  useEffect(() => {
+    if (loading) return;
+    if (!view || view.kind === "settings" || (view.kind === "note" && view.id === null)) {
+      if (!view) storeView(world.id, null);
+      return;
+    }
+    storeView(world.id, {
+      kind: view.kind,
+      id: view.kind === "note" ? view.id : undefined,
+      subgroupId: "subgroupId" in view ? view.subgroupId : undefined,
+    });
+  }, [view, loading]);
+
+  // Keyboard shortcuts, listed in the volume's Ajuda.
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (isDialogOpen() || event.repeat) return;
+      const mod = event.ctrlKey || event.metaKey;
+      if (mod && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSidebarHidden(false);
+        requestAnimationFrame(() => searchRef.current?.focus());
+      } else if (mod && event.key === "\\") {
+        event.preventDefault();
+        toggleSidebar(!sidebarHidden);
+      } else if (mod && event.key === "/") {
+        event.preventDefault();
+        showVolumeView("help");
+      } else if (event.altKey && !mod && event.code === "KeyN") {
+        event.preventDefault();
+        openNewIn(null);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  });
 
   // Crossing into the phone layout closes the drawer; going back to a wide window restores the saved choice.
   useEffect(() => {
@@ -229,7 +334,7 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
 
   const showManuscript = (subgroupId: string | null) => show({ kind: "manuscript", subgroupId, key: ++viewCount });
   const showBoard = (subgroupId: string | null) => show({ kind: "board", subgroupId, key: ++viewCount });
-  const showVolumeView = (kind: (typeof VOLUME_VIEWS)[number]["kind"] | "settings") =>
+  const showVolumeView = (kind: (typeof VOLUME_VIEWS)[number]["kind"] | "settings" | "trash" | "help") =>
     kind === "manuscript" || kind === "board"
       ? show({ kind, subgroupId: null, key: ++viewCount })
       : show({ kind, key: ++viewCount });
@@ -243,6 +348,42 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
       setWorld(current => ({ ...current, features: stored }));
     } catch (err) {
       setTreeError(err instanceof Error ? err.message : "Erro ao salvar os recursos.");
+    }
+  };
+
+  // Name, description, color and icon, from Recursos. Resolves to an error message, or null once saved.
+  const saveDetails = async (details: WorldDetails) => {
+    try {
+      await updateWorld(world.id, details);
+      setWorld(current => ({ ...current, ...details }));
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Erro ao salvar o volume.";
+    }
+  };
+
+  // Can't be undone and has no Lixeira, so the name has to be typed to confirm.
+  const deleteVolume = async () => {
+    try {
+      const contents = await worldContents(world.id);
+      const parts = [
+        contents.notes === 1 ? "1 verbete" : `${contents.notes} verbetes`,
+        contents.subgroups === 1 ? "1 subgrupo" : `${contents.subgroups} subgrupos`,
+      ];
+      const confirmed = await confirmAction({
+        title: `Excluir o volume “${world.name}”?`,
+        message: `Vão junto ${parts.join(" e ")}, com as categorias e as versões, inclusive o que está na Lixeira. Com a sincronização ligada, a cópia na nuvem também é apagada. Não dá para desfazer.`,
+        confirmLabel: "Excluir volume",
+        danger: true,
+        requireText: world.name,
+      });
+      if (!confirmed) return;
+      await deleteWorld(world.id);
+      storeView(world.id, null);
+      notify(`Volume “${world.name}” excluído.`);
+      onDeleted();
+    } catch (err) {
+      setTreeError(err instanceof Error ? err.message : "Erro ao excluir o volume.");
     }
   };
 
@@ -267,9 +408,32 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
     refreshStats();
   };
 
-  const handleDeleted = (id: string) => {
+  // A note restored from the Lixeira, by "Desfazer" or from the Lixeira itself, back in the listing.
+  const handleRestored = (restored: NoteItem) => {
+    setNotes(current => [...current.filter(note => note.id !== restored.id), restored]);
+    expandTo(restored.subgroup_id);
+    setTrashChanges(count => count + 1);
+  };
+
+  // Moved to the Lixeira from the editor; the notice offers to bring it straight back.
+  const handleDeleted = (id: string, title: string) => {
     setNotes(current => current.filter(note => note.id !== id));
     setView(open => (open?.kind === "note" && open.id === id ? null : open));
+    setTrashChanges(count => count + 1);
+    const name = title.trim() ? `“${title.trim()}”` : "Verbete";
+    notify(`${name} foi para a Lixeira.`, {
+      label: "Desfazer",
+      run: async () => {
+        try {
+          const restored = await restoreNote(id);
+          if (!restored) return;
+          handleRestored(restored);
+          show({ kind: "note", id: restored.id, subgroupId: restored.subgroup_id, key: ++viewCount });
+        } catch (err) {
+          setTreeError(err instanceof Error ? err.message : "Erro ao restaurar o verbete.");
+        }
+      },
+    });
   };
 
   const handleCategoryRenamed = (renamed: CategoryItem) => {
@@ -490,8 +654,15 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
       .filter(Boolean)
       .join(" e ");
     const destination = parentName ? `para “${parentName}”` : "para o topo do volume";
-    const warning = contents ? ` O que está nele (${contents}) vai ${destination}.` : "";
-    if (!window.confirm(`Excluir o subgrupo “${subgroup.name}”?${warning}`)) return;
+    const confirmed = await confirmAction({
+      title: `Excluir o subgrupo “${subgroup.name}”?`,
+      message: contents
+        ? `Nada é apagado: o que está nele (${contents}) vai ${destination}.`
+        : "O subgrupo está vazio.",
+      confirmLabel: "Excluir subgrupo",
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       const plan = planSubgroupDelete(subgroup, notes, subgroups);
@@ -595,8 +766,26 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
               >
                 ⚙ Recursos
               </button>
+              <button
+                type="button"
+                className="volume__view-button volume__view-button--settings"
+                aria-pressed={view?.kind === "trash"}
+                onClick={() => showVolumeView("trash")}
+              >
+                Lixeira
+              </button>
             </div>
           </div>
+          <button
+            type="button"
+            aria-label="Ajuda"
+            title="Ajuda"
+            aria-pressed={view?.kind === "help"}
+            className="volume__band-button volume__help"
+            onClick={() => showVolumeView("help")}
+          >
+            ?
+          </button>
           <button
             type="button"
             aria-label="Esconder a lista"
@@ -613,6 +802,7 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
         {notes.length > 0 && (
           <div className="volume__search-row">
             <input
+              ref={searchRef}
               type="search"
               className="volume__search"
               value={query}
@@ -701,7 +891,8 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
             <>
               {notes.length === 0 && subgroups.length === 0 && addingIn === undefined && (
                 <p className="volume__status">
-                  Esta gaveta ainda está vazia. Comece um verbete ou crie subgrupos para organizar o volume.
+                  Este volume ainda está vazio. Comece um verbete ou crie subgrupos para organizar o volume. Em
+                  dúvida, use o botão ? para ver a ajuda.
                 </p>
               )}
               {filtering && visibleNotes.length === 0 && <p className="volume__status">{emptyFilterText}</p>}
@@ -834,12 +1025,28 @@ export default function WorldNotes({ world: initialWorld, onBack, backHandler }:
           />
         ) : view.kind === "settings" ? (
           <VolumeSettings
+            world={world}
             features={features}
             kind={world.kind ?? null}
             headStart={showSidebarButton}
             onToggle={toggleFeature}
             onKindChange={changeKind}
+            onSaveDetails={saveDetails}
+            onDelete={deleteVolume}
           />
+        ) : view.kind === "trash" ? (
+          <TrashView
+            worldId={world.id}
+            refresh={trashChanges}
+            headStart={showSidebarButton}
+            onRestored={restored => {
+              handleRestored(restored);
+              const name = restored.title.trim() ? `“${restored.title.trim()}”` : "O verbete";
+              notify(`${name} voltou para o volume.`, { label: "Abrir", run: () => openExisting(restored) });
+            }}
+          />
+        ) : view.kind === "help" ? (
+          <HelpView features={features} headStart={showSidebarButton} onOpenSettings={() => showVolumeView("settings")} />
         ) : view.kind === "timeline" ? (
           <TimelineView notes={notes} categories={categories} headStart={showSidebarButton} onOpenNote={openExisting} />
         ) : view.kind === "graph" ? (

@@ -1,5 +1,5 @@
 import { newId, now, queryAll, run, runBatch } from "./db";
-import { respacedStatements, type Placement } from "./order";
+import { endPosition, respacedStatements, type Placement } from "./order";
 import { countWords, recordWordsStatement } from "./writing";
 
 // A custom field: "Idade" → "32".
@@ -44,10 +44,20 @@ export async function loadNotes(worldId: string): Promise<NoteItem[]> {
   const rows = await queryAll<Omit<NoteItem, "fields"> & { fields: string }>(
     `SELECT id, title, content, category_id, subgroup_id, position, status, synopsis, fields, timeline, created_at,
        updated_at
-     FROM notes WHERE world_id = ?`,
+     FROM notes WHERE world_id = ? AND deleted_at IS NULL`,
     [worldId],
   );
   return rows.map(row => ({ ...row, fields: parseFields(row.fields) }));
+}
+
+// A note in the volume's Lixeira, newest first.
+export type TrashedNote = { id: string; title: string; content: string; deleted_at: string };
+
+export async function loadTrash(worldId: string): Promise<TrashedNote[]> {
+  return queryAll<TrashedNote>(
+    "SELECT id, title, content, deleted_at FROM notes WHERE world_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+    [worldId],
+  );
 }
 
 // Its words count towards today's writing in the volume.
@@ -114,6 +124,29 @@ export async function moveNote(id: string, { parentId, position, respaced }: Pla
   ]);
 }
 
-export async function deleteNote(id: string) {
-  await run("DELETE FROM notes WHERE id = ?", [id]);
+// Deleting a note moves it to the Lixeira, where it can be restored; only deleteForever removes it.
+export async function trashNote(id: string) {
+  await run("UPDATE notes SET deleted_at = ? WHERE id = ?", [now(), id]);
+}
+
+// Back into the volume, at the end of its subgroup (or of the volume, if the subgroup is gone; the database
+// already cleared subgroup_id then). Resolves to the note as the listing shows it.
+export async function restoreNote(id: string): Promise<NoteItem | null> {
+  await run("UPDATE notes SET deleted_at = NULL, position = ? WHERE id = ?", [endPosition(), id]);
+  const rows = await queryAll<Omit<NoteItem, "fields"> & { fields: string }>(
+    `SELECT id, title, content, category_id, subgroup_id, position, status, synopsis, fields, timeline, created_at,
+       updated_at
+     FROM notes WHERE id = ?`,
+    [id],
+  );
+  return rows[0] ? { ...rows[0], fields: parseFields(rows[0].fields) } : null;
+}
+
+// For good, with its versions.
+export async function deleteForever(id: string) {
+  await run("DELETE FROM notes WHERE id = ? AND deleted_at IS NOT NULL", [id]);
+}
+
+export async function emptyTrash(worldId: string) {
+  await run("DELETE FROM notes WHERE world_id = ? AND deleted_at IS NOT NULL", [worldId]);
 }

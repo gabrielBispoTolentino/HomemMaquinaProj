@@ -89,6 +89,9 @@ const SCHEMA = `
     fields TEXT NOT NULL DEFAULT '[]',
     -- When it happens, in the volume's own terms ("Ano 312, inverno"), for the timeline.
     timeline TEXT NOT NULL DEFAULT '',
+    -- When it was moved to the volume's Lixeira (see notes.ts); null while it's in the volume. Notes in the Lixeira
+    -- stay until restored or deleted for good, and are left out of the listing, search, mentions and views.
+    deleted_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -197,6 +200,7 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string; fill?:
   { table: "worlds", column: "features", definition: "TEXT" },
   { table: "notes", column: "fields", definition: "TEXT NOT NULL DEFAULT '[]'" },
   { table: "notes", column: "timeline", definition: "TEXT NOT NULL DEFAULT ''" },
+  { table: "notes", column: "deleted_at", definition: "TEXT" },
 ];
 
 // Indexes on added columns, created once the columns exist.

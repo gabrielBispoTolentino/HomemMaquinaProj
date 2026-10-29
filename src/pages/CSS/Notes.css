@@ -877,33 +877,6 @@
   color: #a3322a;
 }
 
-.notes__delete-button {
-  flex: none;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  padding: 0.55rem 0.9rem;
-  font-family: var(--binder-display);
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: var(--binder-on-slate-muted);
-  cursor: pointer;
-}
-
-.notes__delete-button:hover {
-  background: rgba(245, 167, 161, 0.14);
-  color: #f5a7a1;
-}
-
-.notes__delete-button:focus-visible {
-  outline: 3px solid var(--binder-paper);
-}
-
-.notes__delete-button:disabled {
-  cursor: wait;
-  opacity: 0.6;
-}
-
 
 /* A page of the open divider: the margin line is drawn in the world's color. */
 .note-editor {
@@ -1221,18 +1194,56 @@
   background: transparent;
   padding: 0;
   font-family: var(--binder-text);
-  font-size: 1.05rem;
+  /* --text-scale is the reader's text size, set on this device (see prefs.ts). */
+  font-size: calc(1.05rem * var(--text-scale, 1));
   line-height: 1.75;
   color: var(--binder-ink);
   resize: none;
 }
 
-/* The note's history, at the foot of the page. */
-.note-editor__register {
+/* The foot of the page: the note's history, and moving it to the Lixeira, far from the everyday buttons. */
+.note-editor__foot {
   flex: none;
-  margin: 0.75rem 0 0;
-  padding-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.4rem;
   border-top: 1px dashed #b9c5ce;
+}
+
+.note-editor__trash {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 0.8rem;
+  margin-right: -0.5rem;
+  background: transparent;
+  color: var(--binder-muted);
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.note-editor__trash:hover {
+  background: rgba(163, 50, 42, 0.1);
+  color: #a3322a;
+}
+
+.note-editor__trash:focus-visible {
+  outline: 2px solid var(--binder-ink);
+}
+
+.note-editor__trash:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.note-editor__register {
+  margin: 0;
   font-family: var(--binder-display);
   font-size: 0.95rem;
   font-weight: 500;

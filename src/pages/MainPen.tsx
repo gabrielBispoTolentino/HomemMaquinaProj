@@ -1,3 +1,4 @@
+import landingUrl from "../assets/landing.jpg" with { type: "file" };
 import "./CSS/MainPen.css";
 
 type MainPenProps = {
@@ -11,10 +12,8 @@ export default function MainPen({ onEntrar, onGoToCadastro }: MainPenProps) {
       <section className="main-pen__section">
         <div
           className="main-pen__background"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80')",
-          }}
+          // Bundled with the app (photo from Unsplash), so the first screen looks the same without internet.
+          style={{ backgroundImage: `url("${landingUrl}")` }}
         />
         <div className="main-pen__overlay" />
 

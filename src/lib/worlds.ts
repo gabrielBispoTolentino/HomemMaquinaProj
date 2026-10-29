@@ -6,6 +6,7 @@ import { volumeKind, type SeedItem, type VolumeKind } from "./volumeKinds";
 export type WorldItem = {
   id: string;
   name: string;
+  description?: string | null;
   accent_color?: string | null;
   icon?: string | null;
   // The model it was made from and the features it has on (see features.ts); null for older volumes.
@@ -16,7 +17,7 @@ export type WorldItem = {
 export async function loadWorlds(userId: number): Promise<WorldItem[]> {
   await importFromSupabase(userId);
   return queryAll<WorldItem>(
-    "SELECT id, name, accent_color, icon, kind, features FROM worlds WHERE user_id = ? ORDER BY created_at DESC",
+    "SELECT id, name, description, accent_color, icon, kind, features FROM worlds WHERE user_id = ? ORDER BY created_at DESC",
     [userId],
   );
 }
@@ -91,6 +92,7 @@ export async function createWorld(
   const world: WorldItem = {
     id: newId(),
     name,
+    description,
     accent_color: kind.accent,
     icon: kind.icon,
     kind: kind.id,
@@ -117,6 +119,35 @@ export async function setWorldFeatures(worldId: string, features: Set<FeatureId>
 // Only changes which note templates the volume offers; features are switched separately.
 export async function setWorldKind(worldId: string, kind: string | null) {
   await run("UPDATE worlds SET kind = ? WHERE id = ?", [kind, worldId]);
+}
+
+// What the volume's own settings change: its name, description, color and icon.
+export type WorldDetails = { name: string; description: string | null; accent_color: string; icon: string };
+
+export async function updateWorld(worldId: string, details: WorldDetails) {
+  await run("UPDATE worlds SET name = ?, description = ?, accent_color = ?, icon = ?, updated_at = ? WHERE id = ?", [
+    details.name,
+    details.description,
+    details.accent_color,
+    details.icon,
+    now(),
+    worldId,
+  ]);
+}
+
+// The volume and everything in it (the cascades in db.ts); with sync on, the cloud copy goes too.
+export async function deleteWorld(worldId: string) {
+  await run("DELETE FROM worlds WHERE id = ?", [worldId]);
+}
+
+// What deleting a volume would take with it, for the confirmation.
+export async function worldContents(worldId: string) {
+  const rows = await queryAll<{ notes: number; subgroups: number }>(
+    `SELECT (SELECT count(*) FROM notes WHERE world_id = ?) AS notes,
+       (SELECT count(*) FROM subgroups WHERE world_id = ?) AS subgroups`,
+    [worldId, worldId],
+  );
+  return rows[0] ?? { notes: 0, subgroups: 0 };
 }
 
 export function worldFeatures(world: WorldItem) {

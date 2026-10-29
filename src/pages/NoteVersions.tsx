@@ -3,6 +3,7 @@ import { diffParagraphs } from "../lib/diff";
 import { createSnapshot, deleteSnapshot, loadSnapshots, type SnapshotItem } from "../lib/snapshots";
 import { countWords, formatWords } from "../lib/writing";
 import "./CSS/Writing.css";
+import { confirmAction } from "./Dialogs.tsx";
 
 type NoteVersionsProps = {
   title: string;
@@ -48,9 +49,12 @@ export default function NoteVersions({ title, content, ensureSaved, onRestore, o
 
   // The current text is kept as a version first, so restoring can be undone.
   const restore = async (snapshot: SnapshotItem) => {
-    if (!window.confirm(`Voltar o verbete para a versão de ${versionDate(snapshot.created_at)}? O texto atual fica guardado como versão.`)) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: `Voltar para a versão de ${versionDate(snapshot.created_at)}?`,
+      message: "O texto atual fica guardado como uma versão, então dá para voltar a ele depois.",
+      confirmLabel: "Restaurar versão",
+    });
+    if (!confirmed) return;
     try {
       const id = await ensureSaved();
       if (!id) return;
@@ -64,7 +68,13 @@ export default function NoteVersions({ title, content, ensureSaved, onRestore, o
   };
 
   const remove = async (snapshot: SnapshotItem) => {
-    if (!window.confirm(`Excluir a versão de ${versionDate(snapshot.created_at)}?`)) return;
+    const confirmed = await confirmAction({
+      title: `Excluir a versão de ${versionDate(snapshot.created_at)}?`,
+      message: "O verbete continua como está; só esta versão guardada é apagada, e não dá para desfazer.",
+      confirmLabel: "Excluir versão",
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await deleteSnapshot(snapshot.id);
       setSnapshots(list => list.filter(item => item.id !== snapshot.id));

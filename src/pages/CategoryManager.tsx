@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { categoryColor, deleteCategory, findCategoryByName, renameCategory, type CategoryItem } from "../lib/categories";
+import { confirmAction } from "./Dialogs.tsx";
 
 type CategoryManagerProps = {
   categories: CategoryItem[];
@@ -109,8 +110,15 @@ export default function CategoryManager({ categories, noteCounts, onRenamed, onD
 
   const remove = async (category: CategoryItem) => {
     const count = noteCounts[category.id] ?? 0;
-    const warning = count ? ` ${count === 1 ? "1 verbete ficará" : `${count} verbetes ficarão`} sem categoria.` : "";
-    if (!window.confirm(`Excluir a categoria “${category.name}”?${warning}`)) return;
+    const confirmed = await confirmAction({
+      title: `Excluir a categoria “${category.name}”?`,
+      message: count
+        ? `${count === 1 ? "1 verbete ficará" : `${count} verbetes ficarão`} sem categoria. Nenhum verbete é apagado.`
+        : "Nenhum verbete usa esta categoria.",
+      confirmLabel: "Excluir categoria",
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       setDeletingId(category.id);

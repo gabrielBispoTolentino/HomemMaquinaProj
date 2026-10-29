@@ -81,7 +81,8 @@
   background: var(--binder-paper);
   color: var(--binder-ink);
   font-family: var(--binder-text);
-  font-size: 1.08rem;
+  /* --text-scale is the reader's text size, set on this device (see prefs.ts). */
+  font-size: calc(1.08rem * var(--text-scale, 1));
   line-height: 1.8;
   scrollbar-color: #b9c5ce transparent;
 }

@@ -554,3 +554,295 @@
     transition: none;
   }
 }
+
+/* Recursos: the volume's own name, description, color and icon, and reading size on this device. */
+.settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0 0.9rem;
+  padding: 0 0.75rem;
+  border: 0;
+}
+
+.settings__optional {
+  font-family: var(--binder-text);
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--binder-on-slate-muted);
+}
+
+.settings__input {
+  width: 100%;
+  max-width: 32rem;
+  min-height: 44px;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--binder-on-slate);
+  font-family: var(--binder-text);
+  font-size: 1rem;
+}
+
+.settings__input--area {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.settings__input:focus-visible {
+  outline: 2px solid var(--binder-paper);
+  outline-offset: 1px;
+}
+
+/* A row of round choices: colors, icons and text sizes. */
+.settings__choices {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.settings__choices legend {
+  width: 100%;
+  margin-bottom: 0.35rem;
+  padding: 0;
+}
+
+.settings__swatch,
+.settings__icon-choice,
+.settings__size-choice {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.settings__swatch {
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.15);
+}
+
+.settings__icon-choice,
+.settings__size-choice {
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 1.3rem;
+}
+
+.settings__size-choice {
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* The radio itself is invisible but still focusable and announced; its label shows the choice. */
+.settings__swatch input,
+.settings__icon-choice input,
+.settings__size-choice input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border-radius: 50%;
+  appearance: none;
+  cursor: pointer;
+}
+
+.settings__swatch:has(input:checked),
+.settings__icon-choice:has(input:checked),
+.settings__size-choice:has(input:checked) {
+  box-shadow: 0 0 0 3px var(--binder-paper);
+}
+
+.settings__icon-choice:has(input:checked),
+.settings__size-choice:has(input:checked) {
+  background: var(--world);
+  color: var(--binder-ink);
+}
+
+.settings__swatch:has(input:focus-visible),
+.settings__icon-choice:has(input:focus-visible),
+.settings__size-choice:has(input:focus-visible) {
+  outline: 2px dashed var(--binder-paper);
+  outline-offset: 4px;
+}
+
+.settings__message {
+  margin: 0 0.75rem;
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  color: var(--binder-on-slate-muted);
+}
+
+.settings__message--error,
+.world-view__error {
+  color: #f5a7a1;
+}
+
+/* Deleting the volume: set apart at the end, in the warning color. */
+.settings__group--danger {
+  margin-top: 2rem;
+  border-top: 1px solid rgba(245, 167, 161, 0.3);
+  padding: 1rem 0.75rem 0;
+}
+
+.settings__group--danger .settings__description {
+  max-width: 36rem;
+  margin: 0 0 0.75rem;
+}
+
+.settings__delete {
+  min-height: 44px;
+  background: rgba(245, 167, 161, 0.14);
+  color: #f5a7a1;
+}
+
+.settings__delete:hover {
+  background: rgba(245, 167, 161, 0.24);
+}
+
+/* Lixeira: deleted notes waiting to be restored or deleted for good. */
+.trash__empty {
+  margin-left: auto;
+}
+
+.trash {
+  margin: 0;
+  padding: 0 0 1rem;
+  list-style: none;
+}
+
+.trash__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.trash__text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.trash__title {
+  margin: 0;
+  font-family: var(--binder-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.trash__excerpt {
+  margin: 0.2rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--binder-on-slate-muted);
+  overflow-wrap: anywhere;
+}
+
+.trash__date {
+  margin: 0.3rem 0 0;
+  font-family: var(--binder-display);
+  font-size: 0.9rem;
+  color: var(--binder-on-slate-muted);
+}
+
+.trash__actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.trash__actions .writing-button {
+  min-height: 44px;
+}
+
+/* Ajuda: the volume's guide. */
+.help__section {
+  max-width: 44rem;
+  margin-bottom: 1.6rem;
+}
+
+.help__terms,
+.help__keys {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.45rem 1rem;
+  margin: 0;
+  padding: 0 0.75rem;
+}
+
+.help__terms dt,
+.help__keys dt {
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.help__terms dd,
+.help__keys dd {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--binder-on-slate-muted);
+}
+
+.help__list {
+  margin: 0;
+  padding: 0 0.75rem 0 2rem;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--binder-on-slate-muted);
+}
+
+.help__list li + li {
+  margin-top: 0.45rem;
+}
+
+.help__list strong {
+  color: var(--binder-on-slate);
+}
+
+.help code,
+.help kbd {
+  border-radius: 5px;
+  padding: 0.05rem 0.35rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--binder-on-slate);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.help kbd {
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.help .writing-button {
+  margin-left: 0.75rem;
+  min-height: 44px;
+}
+
+/* Phones rarely have a keyboard attached, so the shortcuts are left out there. */
+@media (pointer: coarse) and (max-width: 799px) {
+  .help__section--keys {
+    display: none;
+  }
+}
+
+/* Narrow screens: the term and its meaning stack instead of sitting side by side. */
+@media (max-width: 479px) {
+  .help__terms,
+  .help__keys {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .help__terms dd,
+  .help__keys dd {
+    margin-bottom: 0.5rem;
+  }
+}
