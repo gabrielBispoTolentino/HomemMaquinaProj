@@ -50,6 +50,42 @@
   background: #fff;
 }
 
+/* Where the volumes are kept: only here, or also in the cloud (sync.ts). */
+.world-list__sync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.9rem;
+  max-width: 480px;
+  margin: -0.75rem auto 1.5rem;
+  font-size: 0.9rem;
+  color: var(--binder-on-slate-muted);
+}
+
+.world-list__sync--error .world-list__sync-state {
+  color: #f5a7a1;
+}
+
+.world-list__sync-state {
+  margin-right: auto;
+}
+
+.world-list__sync-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: var(--binder-on-slate);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.world-list__sync-link:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
 .world-list__status {
   max-width: 480px;
   margin: 2.5rem auto;

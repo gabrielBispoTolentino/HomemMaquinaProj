@@ -31,6 +31,19 @@ export function mentionedNotes(text: string, byTitle: Map<string, NoteItem>) {
   return found;
 }
 
+// The text cut into plain runs and [[mentions]], each with where it starts in the text, for showing mentions as links.
+export function mentionSegments(text: string) {
+  const segments: { start: number; text: string; name?: string }[] = [];
+  let last = 0;
+  for (const match of text.matchAll(MENTION)) {
+    if (match.index > last) segments.push({ start: last, text: text.slice(last, match.index) });
+    segments.push({ start: match.index, text: match[0], name: match[1]! });
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) segments.push({ start: last, text: text.slice(last) });
+  return segments;
+}
+
 // Every mention between notes in the volume, as from → to pairs (each pair once, no self-mentions).
 export function mentionLinks(notes: NoteItem[]) {
   const byTitle = notesByTitle(notes);

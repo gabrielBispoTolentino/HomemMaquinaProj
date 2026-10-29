@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { categoryColor, createCategory, findCategoryByName, type CategoryItem } from "../lib/categories";
 import { featureOn, type FeatureId } from "../lib/features";
 import { backlinks, mentionedNotes, notesByTitle, titleKey } from "../lib/mentions";
@@ -7,6 +8,7 @@ import { endPosition } from "../lib/order";
 import { subgroupPaths, type SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords, NOTE_STATUSES } from "../lib/writing";
 import type { WorldItem } from "../lib/worlds";
+import MentionText from "./MentionText.tsx";
 import NoteFields from "./NoteFields.tsx";
 import NoteVersions from "./NoteVersions.tsx";
 import "./CSS/Notes.css";
@@ -69,6 +71,8 @@ export default function NoteEditor(props: NoteEditorProps) {
   const [fields, setFields] = useState(note?.fields ?? preset?.fields ?? []);
   const [timeline, setTimeline] = useState(note?.timeline ?? preset?.timeline ?? "");
   const [mention, setMention] = useState<{ start: number; query: string; index: number } | null>(null);
+  // Whether the text is in its textarea; otherwise it shows with [[mentions]] as links (MentionText).
+  const [editingContent, setEditingContent] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -292,7 +296,19 @@ export default function NoteEditor(props: NoteEditorProps) {
     });
   };
 
-  const mentions = on("mentions") ? mentionedNotes(content, notesByTitle(allNotes)).filter(item => item.id !== noteId.current) : [];
+  const byTitle = notesByTitle(allNotes);
+  const mentions = on("mentions") ? mentionedNotes(content, byTitle).filter(item => item.id !== noteId.current) : [];
+  const reading = on("mentions") && !editingContent && content.trim() !== "";
+
+  // Switches to the textarea within the click or key press, so phones still open the keyboard for it.
+  const editContent = (caret = content.length, scrollTop?: number) => {
+    flushSync(() => setEditingContent(true));
+    const textarea = contentRef.current;
+    if (!textarea) return;
+    if (scrollTop !== undefined) textarea.scrollTop = scrollTop;
+    textarea.focus({ preventScroll: true });
+    textarea.setSelectionRange(caret, caret);
+  };
   const mentionedIn = on("mentions") && title.trim() ? backlinks({ id: noteId.current ?? "", title }, allNotes) : [];
 
   const statusText = error || (saveState === "pending" ? "Arquivando..." : "Arquivado");
@@ -363,7 +379,7 @@ export default function NoteEditor(props: NoteEditorProps) {
           onKeyDown={event => {
             if (event.key === "Enter") {
               event.preventDefault();
-              contentRef.current?.focus();
+              editContent();
             }
           }}
           placeholder="Título"
@@ -461,31 +477,45 @@ export default function NoteEditor(props: NoteEditorProps) {
           />
         )}
         <div className="note-editor__body">
-          <textarea
-            ref={contentRef}
-            className="note-editor__content"
-            value={content}
-            onChange={event => {
-              edit({ content: event.target.value });
-              trackMention(event.target);
-            }}
-            onSelect={event => trackMention(event.currentTarget)}
-            onBlur={() => setTimeout(() => setMention(null), 150)}
-            onKeyDown={event => {
-              if (!mention || suggestions.length === 0) return;
-              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                event.preventDefault();
-                const step = event.key === "ArrowDown" ? 1 : -1;
-                setMention({ ...mention, index: (mention.index + step + suggestions.length) % suggestions.length });
-              } else if (event.key === "Enter" || event.key === "Tab") {
-                event.preventDefault();
-                completeMention(suggestions[mention.index] ?? suggestions[0]!);
-              } else if (event.key === "Escape") {
-                setMention(null);
-              }
-            }}
-            placeholder={on("mentions") ? "Escreva o verbete... Use [[ para citar outro verbete." : "Escreva o verbete..."}
-          />
+          {reading ? (
+            <MentionText
+              content={content}
+              byTitle={byTitle}
+              noteId={noteId.current}
+              onOpenNote={props.onOpenNote}
+              onEdit={editContent}
+            />
+          ) : (
+            <textarea
+              ref={contentRef}
+              className="note-editor__content"
+              value={content}
+              onChange={event => {
+                edit({ content: event.target.value });
+                trackMention(event.target);
+              }}
+              onSelect={event => trackMention(event.currentTarget)}
+              onFocus={() => setEditingContent(true)}
+              onBlur={() => {
+                setEditingContent(false);
+                setTimeout(() => setMention(null), 150);
+              }}
+              onKeyDown={event => {
+                if (!mention || suggestions.length === 0) return;
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  const step = event.key === "ArrowDown" ? 1 : -1;
+                  setMention({ ...mention, index: (mention.index + step + suggestions.length) % suggestions.length });
+                } else if (event.key === "Enter" || event.key === "Tab") {
+                  event.preventDefault();
+                  completeMention(suggestions[mention.index] ?? suggestions[0]!);
+                } else if (event.key === "Escape") {
+                  setMention(null);
+                }
+              }}
+              placeholder={on("mentions") ? "Escreva o verbete... Use [[ para citar outro verbete." : "Escreva o verbete..."}
+            />
+          )}
           {suggestions.length > 0 && (
             <ul className="mention-suggest" role="listbox" aria-label="Verbetes para citar">
               {suggestions.map((item, index) => (

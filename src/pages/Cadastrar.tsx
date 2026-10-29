@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getSupabaseClient } from "../lib/supabase";
+import { signUp } from "../lib/auth";
 import "./CSS/Cadastrar.css";
 
 type CadastrarProps = {
@@ -38,19 +38,18 @@ export default function Cadastrar({ onBack, onGoToLogin }: CadastrarProps) {
       setError("");
       setSuccess("");
 
-      const supabase = getSupabaseClient();
-      const { error: insertError } = await supabase.from("user").insert({
+      const { confirmEmail } = await signUp({
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
         cellphone: form.cellphone.trim(),
       });
 
-      if (insertError) {
-        throw insertError;
-      }
-
-      setSuccess("Cadastro realizado com sucesso!");
+      setSuccess(
+        confirmEmail
+          ? "Cadastro realizado! Confirme pelo link que enviamos para o seu email e depois entre."
+          : "Cadastro realizado com sucesso! Agora é só entrar.",
+      );
       setForm(emptyForm);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao cadastrar usuário.";

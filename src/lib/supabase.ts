@@ -3,10 +3,32 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 type Database = {
   public: {
     Tables: {
+      // Rows are created by a trigger when Supabase Auth makes an account, and each user can only read their own
+      // (see supabase/auth_sync.sql).
       user: {
-        Row: { id: number; name: string; email: string; password: string };
-        Insert: { id?: number; name: string; email: string; password: string };
-        Update: Partial<{ name: string; email: string; password: string }>;
+        Row: { id: number; name: string; email: string; cellphone: string | null; auth_id: string | null };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      // The cloud copy of synced users' local databases (sync.ts).
+      sync_rows: {
+        Row: {
+          user_id: number;
+          tbl: string;
+          row_id: string;
+          data: Record<string, unknown> | null;
+          changed_at: string;
+          rev: number;
+        };
+        Insert: {
+          user_id: number;
+          tbl: string;
+          row_id: string;
+          data: Record<string, unknown> | null;
+          changed_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["sync_rows"]["Insert"]>;
         Relationships: [];
       };
       // worlds, notes and categories now live in the local database (db.ts); these
@@ -124,9 +146,10 @@ export function getSupabaseClient() {
 
   if (!supabaseClient) {
     supabaseClient = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
+      // The session lasts while the app is open; sync keeps using it, so it has to be refreshed.
       auth: {
         persistSession: false,
-        autoRefreshToken: false,
+        autoRefreshToken: true,
         detectSessionInUrl: false,
       },
     });

@@ -1241,6 +1241,44 @@
 }
 
 .note-editor__title::placeholder,
+/* The text while not being edited (MentionText): wraps and scrolls like the textarea it stands in for. */
+.note-editor__content--reading {
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  cursor: text;
+}
+
+.note-editor__content--reading:focus-visible {
+  outline: none;
+}
+
+.mention-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.mention-link:hover,
+.mention-link:focus-visible {
+  outline: none;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--world, currentColor);
+}
+
+/* No note has this title (yet). */
+.mention-link--missing {
+  text-decoration-style: dotted;
+  color: var(--binder-muted);
+  cursor: text;
+}
+
+.mention-link--missing:hover {
+  text-decoration-thickness: 1px;
+  text-decoration-color: currentColor;
+}
+
 .note-editor__content::placeholder {
   color: #93a1ac;
 }

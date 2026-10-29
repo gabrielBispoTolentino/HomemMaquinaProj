@@ -1,0 +1,52 @@
+/* The sync choice after the first login on a device, on the login screen's card (Login.css). */
+.sync-choice__heading {
+  font-size: clamp(1.7rem, 2.6vw, 2.2rem);
+}
+
+.sync-choice__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sync-choice__option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  border: 1px solid #5c7b91;
+  border-radius: 16px;
+  background: transparent;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font: inherit;
+  color: #1d2a39;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.sync-choice__option:hover:not(:disabled) {
+  border-color: #3d6c9b;
+  background: #fff;
+}
+
+.sync-choice__option:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.sync-choice__label {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #2f3d4a;
+}
+
+.sync-choice__description {
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: #4a5a68;
+}
+
+.sync-choice__note {
+  font-size: 0.95rem;
+}

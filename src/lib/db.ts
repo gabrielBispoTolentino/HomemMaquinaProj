@@ -2,7 +2,8 @@ import { Capacitor } from "@capacitor/core";
 import type { Database as SqlJsDatabase } from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm-browser.wasm" with { type: "file" };
 
-// Worlds, notes and categories live in a SQLite database on the device; Supabase is only used to log in.
+// Worlds, notes and categories live in a SQLite database on the device. Supabase is used to log in and, for users
+// who turn sync on, to keep a copy in the cloud (sync.ts); the app always reads and writes here.
 // Each platform opens it its own way:
 // - Android/iOS: a native SQLite file through @capacitor-community/sqlite.
 // - Electron: a file in the app's user data folder, opened with node:sqlite by preload.cjs.
@@ -116,7 +117,62 @@ const SCHEMA = `
     user_id INTEGER PRIMARY KEY,
     imported_at TEXT NOT NULL
   );
+
+  -- Rows changed since they were last sent to the cloud (see sync.ts), noted by the triggers in SYNC_TRIGGERS:
+  -- the user logged in when it happened, and when.
+  CREATE TABLE IF NOT EXISTS sync_changes (
+    tbl TEXT NOT NULL,
+    row_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    changed_at TEXT NOT NULL,
+    PRIMARY KEY (tbl, row_id)
+  );
+
+  -- One row: who is logged in, so the triggers know whose change it is, and whether the app is applying changes
+  -- pulled from the cloud, which the triggers skip.
+  CREATE TABLE IF NOT EXISTS sync_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    user_id INTEGER,
+    applying INTEGER NOT NULL DEFAULT 0
+  );
+  INSERT OR IGNORE INTO sync_state (id) VALUES (1);
+
+  -- Each user's sync choice on this device (no row until they choose), the last cloud revision pulled, and when
+  -- the last sync finished.
+  CREATE TABLE IF NOT EXISTS sync_settings (
+    user_id INTEGER PRIMARY KEY,
+    enabled INTEGER NOT NULL,
+    last_rev INTEGER NOT NULL DEFAULT 0,
+    synced_at TEXT
+  );
 `;
+
+// The tables sync.ts copies to the cloud, parents before children, with the SQL naming a row in them (`row` is the
+// table name, or NEW/OLD in a trigger).
+export const SYNCED_TABLES = [
+  { table: "worlds", key: (row: string) => `${row}.id` },
+  { table: "categories", key: (row: string) => `${row}.id` },
+  { table: "subgroups", key: (row: string) => `${row}.id` },
+  { table: "notes", key: (row: string) => `${row}.id` },
+  { table: "note_snapshots", key: (row: string) => `${row}.id` },
+  { table: "writing_days", key: (row: string) => `${row}.world_id || '|' || ${row}.day` },
+] as const;
+
+// Note every insert, update and delete in a synced table while someone is logged in, including rows removed by a
+// cascade. Created one by one through batch(), since the native driver's exec() splits on semicolons. IF NOT EXISTS
+// leaves an existing trigger as it was, so changing one means dropping the old one first.
+const SYNC_TRIGGERS = SYNCED_TABLES.flatMap(({ table, key }) =>
+  (["INSERT", "UPDATE", "DELETE"] as const).map(
+    event => `
+      CREATE TRIGGER IF NOT EXISTS ${table}_sync_${event.toLowerCase()} AFTER ${event} ON ${table}
+      WHEN (SELECT applying FROM sync_state) = 0 AND (SELECT user_id FROM sync_state) IS NOT NULL
+      BEGIN
+        INSERT OR REPLACE INTO sync_changes (tbl, row_id, user_id, changed_at)
+        VALUES ('${table}', ${key(event === "DELETE" ? "OLD" : "NEW")}, (SELECT user_id FROM sync_state),
+          strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+      END`,
+  ),
+);
 
 // Milliseconds since 1970 for a stored ISO timestamp, in SQL.
 const EPOCH_MS = "(julianday(created_at) - 2440587.5) * 86400000";
@@ -275,6 +331,11 @@ async function openDriver(): Promise<Driver> {
   await driver.exec(SCHEMA);
   await addMissingColumns(driver);
   await driver.exec(INDEXES);
+  await driver.batch([
+    ...SYNC_TRIGGERS.map(sql => ({ sql })),
+    // Nobody is logged in yet when the app starts.
+    { sql: "UPDATE sync_state SET user_id = NULL, applying = 0" },
+  ]);
   return driver;
 }
 
@@ -317,6 +378,17 @@ export async function runBatch(statements: Statement[]) {
   if (statements.length === 0) return;
   const driver = await getDriver();
   await enqueue(() => driver.batch(statements));
+  writeListeners.forEach(listener => listener());
+}
+
+const writeListeners = new Set<() => void>();
+
+// Called after every successful write, so sync.ts can send the changes along.
+export function onWrite(listener: () => void) {
+  writeListeners.add(listener);
+  return () => {
+    writeListeners.delete(listener);
+  };
 }
 
 export function newId() {

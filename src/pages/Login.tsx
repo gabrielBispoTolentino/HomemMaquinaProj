@@ -1,17 +1,11 @@
 import { useState } from "react";
-import { getSupabaseClient } from "../lib/supabase";
+import { signIn, type LoggedUser } from "../lib/auth";
 import "./CSS/Login.css";
-
-type LoggedUser = {
-  id: number;
-  name: string;
-  email: string;
-};
 
 type LoginProps = {
   onGoToCadastro: () => void;
   onBack: () => void;
-  onLoginSuccess: (user: LoggedUser) => void;
+  onLoginSuccess: (user: LoggedUser) => Promise<void>;
 };
 
 export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginProps) {
@@ -35,30 +29,12 @@ export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginP
       setError("");
       setSuccess("");
 
-      const supabase = getSupabaseClient();
-      const { data, error: selectError } = await supabase
-        .from("user")
-        .select("id, name, email")
-        .eq("email", email.trim())
-        .eq("password", password)
-        .maybeSingle();
+      const user = await signIn(email.trim(), password);
 
-      if (selectError) {
-        throw selectError;
-      }
-
-      if (!data) {
-        throw new Error("Credenciais inválidas.");
-      }
-
-      setSuccess(`Login realizado com sucesso, ${data.name}!`);
+      setSuccess(`Login realizado com sucesso, ${user.name}!`);
       setEmail("");
       setPassword("");
-      onLoginSuccess({
-        id: data.id,
-        name: data.name,
-        email: data.email,
-      });
+      await onLoginSuccess(user);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao realizar login.";
       setError(message);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getSyncStatus, setSyncEnabled, subscribeSync, syncNow, type SyncStatus } from "../lib/sync";
 import { VOLUME_KINDS, type VolumeKind } from "../lib/volumeKinds";
 import { createWorld, loadWorlds, type WorldItem } from "../lib/worlds";
 import "./CSS/WorldList.css";
@@ -15,6 +16,17 @@ type WorldListProps = {
   onOpenWorld: (world: WorldItem) => void;
 };
 
+function syncLabel({ enabled, syncing, syncedAt, error }: SyncStatus) {
+  if (!enabled) return "Só neste aparelho";
+  if (syncing) return "Sincronizando…";
+  if (error) return error;
+  if (!syncedAt) return "Na nuvem";
+  const date = new Date(syncedAt);
+  const today = date.toDateString() === new Date().toDateString();
+  const when = date.toLocaleString("pt-BR", today ? { hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return `Na nuvem · sincronizado ${today ? "às" : "em"} ${when}`;
+}
+
 export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps) {
   const [worlds, setWorlds] = useState<WorldItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +38,9 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [createError, setCreateError] = useState("");
+  const [sync, setSync] = useState(getSyncStatus);
+
+  useEffect(() => subscribeSync(setSync), []);
 
   useEffect(() => {
     if (!user) {
@@ -50,6 +65,24 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
 
     load();
   }, [user]);
+
+  // Volumes another device added or changed, once a sync brings them in.
+  useEffect(() => {
+    if (!user || sync.pulls === 0) return;
+    loadWorlds(user.id)
+      .then(setWorlds)
+      .catch(err => console.warn("Não foi possível recarregar os volumes.", err));
+  }, [sync.pulls]);
+
+  const toggleSync = async () => {
+    if (!user) return;
+    if (sync.enabled && !window.confirm("Parar de sincronizar neste aparelho? A cópia na nuvem continua guardada.")) return;
+    try {
+      await setSyncEnabled(user.id, !sync.enabled);
+    } catch (err) {
+      console.warn("Não foi possível mudar a sincronização.", err);
+    }
+  };
 
   const handleCreateWorld = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -112,6 +145,22 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
           </button>
         </div>
       </header>
+
+      {user && (
+        <div className={`world-list__sync${sync.error ? " world-list__sync--error" : ""}`} role="status">
+          <span className="world-list__sync-state">
+            <span aria-hidden="true">{sync.enabled ? "☁" : "▣"}</span> {syncLabel(sync)}
+          </span>
+          {sync.enabled && (
+            <button type="button" className="world-list__sync-link" onClick={() => syncNow()} disabled={sync.syncing}>
+              Sincronizar agora
+            </button>
+          )}
+          <button type="button" className="world-list__sync-link" onClick={toggleSync}>
+            {sync.enabled ? "Desativar" : "Ativar sincronização"}
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <p className="world-list__status">Carregando volumes...</p>
