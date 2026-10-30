@@ -1,12 +1,15 @@
 import { Capacitor } from "@capacitor/core";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { featureOn, type FeatureId } from "../lib/features";
 import { MENTION, plainText, withoutSecrets } from "../lib/mentions";
 import type { NoteItem } from "../lib/notes";
-import { bodyParts, evaluateSheet, tablesToText, type Sheet } from "../lib/sheets";
+import { bodyParts, imageIds, imagesToText, type BlockKind } from "../lib/blocks";
+import { loadImages, type NoteImage } from "../lib/images";
+import { evaluateSheet, tablesToText, type Sheet } from "../lib/sheets";
 import { childrenOf } from "../lib/order";
 import type { SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords } from "../lib/writing";
+import "./CSS/Images.css";
 import "./CSS/Sheets.css";
 import "./CSS/Writing.css";
 
@@ -50,9 +53,27 @@ function headingLevel(depth: number) {
 
 // A note's text for reading and exporting: [[Nome]] mentions read as plain names, in the players' version the game
 // master's secrets are left out, and tables are Markdown tables or tab-separated rows (which paste into a
-// spreadsheet as cells), formulas worked out.
-function noteText(content: string, players: boolean, tables: "tsv" | "markdown" = "tsv") {
-  return plainText(tablesToText(players ? withoutSecrets(content) : content, tables));
+// spreadsheet as cells), formulas worked out. In Markdown, images go in whole, so the file stands on its own.
+function noteText(content: string, players: boolean, images?: Map<string, NoteImage>) {
+  let text = players ? withoutSecrets(content) : content;
+  if (images) {
+    text = imagesToText(tablesToText(text, "markdown"), (id, caption) => {
+      const image = images.get(id);
+      return image ? `![${caption.replace(/[[\]]/g, "")}](${image.data})` : caption ? `[Imagem: ${caption}]` : "[Imagem]";
+    });
+  }
+  return plainText(text);
+}
+
+// An image on the page, once loaded, with its caption.
+function Figure({ image, caption }: { image?: NoteImage; caption: string }) {
+  if (!image) return caption ? <p className="manuscript__empty">[Imagem: {caption}]</p> : null;
+  return (
+    <figure className="manuscript__figure">
+      <img src={image.data} alt={caption} width={image.width} height={image.height} />
+      {caption && <figcaption>{caption}</figcaption>}
+    </figure>
+  );
 }
 
 // A table on the page, with formulas worked out; the first row is its header.
@@ -85,15 +106,25 @@ function SheetTable({ rows }: { rows: Sheet }) {
   );
 }
 
-// A note on the page: its text (secrets marked, or left out for the players) with its tables drawn as tables.
-function NoteBody({ content, players, secrets, tables }: { content: string; players: boolean; secrets: boolean; tables: boolean }) {
+type NoteBodyProps = {
+  content: string;
+  players: boolean;
+  secrets: boolean;
+  // The blocks drawn as such (their features are on); the rest read as text.
+  kinds: BlockKind[];
+  images: Map<string, NoteImage>;
+};
+
+// A note on the page: its text (secrets marked, or left out for the players) with its tables and images.
+function NoteBody({ content, players, secrets, kinds, images }: NoteBodyProps) {
   const source = players ? withoutSecrets(content) : content;
-  if (!tables) return <>{secrets && !players ? <NoteText content={source} /> : plainText(source)}</>;
   return (
     <>
-      {bodyParts(source).map((part, index) =>
+      {bodyParts(source, kinds).map((part, index) =>
         part.kind === "table" ? (
           <SheetTable key={index} rows={part.rows} />
+        ) : part.kind === "image" ? (
+          <Figure key={index} image={images.get(part.id)} caption={part.caption} />
         ) : (
           <Fragment key={index}>{secrets && !players ? <NoteText content={part.text} /> : plainText(part.text)}</Fragment>
         ),
@@ -120,14 +151,14 @@ function NoteText({ content }: { content: string }) {
   );
 }
 
-function toMarkdown(title: string, sections: Section[], players: boolean) {
+function toMarkdown(title: string, sections: Section[], players: boolean, images: Map<string, NoteImage>) {
   const parts = [`# ${title}`];
   for (const section of sections) {
     const hashes = "#".repeat(headingLevel(section.depth));
     if (section.kind === "heading") parts.push(`${hashes} ${section.text}`);
     else {
       if (section.note.title.trim()) parts.push(`${hashes} ${section.note.title.trim()}`);
-      const text = noteText(section.note.content, players, "markdown");
+      const text = noteText(section.note.content, players, images);
       if (text) parts.push(text);
     }
   }
@@ -157,6 +188,24 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
   const words = sections.reduce((total, section) => total + (section.kind === "note" ? countWords(section.note.content) : 0), 0);
   // The phone apps can't save a downloaded file from the WebView; copying works everywhere.
   const canDownload = !Capacitor.isNativePlatform();
+  const kinds: BlockKind[] = [];
+  if (featureOn(features, "tables")) kinds.push("table");
+  if (featureOn(features, "images")) kinds.push("image");
+
+  // The pictures the notes show, loaded once they're needed.
+  const [images, setImages] = useState(new Map<string, NoteImage>());
+  const wanted = kinds.includes("image")
+    ? [...new Set(sections.flatMap(section => (section.kind === "note" ? imageIds(section.note.content) : [])))]
+    : [];
+  useEffect(() => {
+    const missing = wanted.filter(id => !images.has(id));
+    if (!missing.length) return;
+    loadImages(missing)
+      .then(found => setImages(current => new Map([...current, ...found.map(image => [image.id, image] as const)])))
+      .catch(() => {
+        // Their captions stand in for them.
+      });
+  }, [wanted.join(" ")]);
 
   const copy = async () => {
     await navigator.clipboard.writeText(toPlainText(title, sections, hideSecrets));
@@ -165,7 +214,7 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
   };
 
   const download = () => {
-    const url = URL.createObjectURL(new Blob([toMarkdown(title, sections, hideSecrets)], { type: "text/markdown;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([toMarkdown(title, sections, hideSecrets, images)], { type: "text/markdown;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = `${title.replace(/[\\/:*?"<>|]+/g, "-")}.md`;
@@ -228,7 +277,7 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
                 </Heading>
               )}
               <div className="manuscript__text">
-                <NoteBody content={note.content} players={hideSecrets} secrets={secrets} tables={featureOn(features, "tables")} />
+                <NoteBody content={note.content} players={hideSecrets} secrets={secrets} kinds={kinds} images={images} />
               </div>
             </section>
           );

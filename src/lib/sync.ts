@@ -25,6 +25,7 @@ type RemoteRow = { tbl: TableName; row_id: string; data: Record<string, unknown>
 
 const PAGE = 1000;
 const PUSH_CHUNK = 100;
+const PUSH_BYTES = 2_000_000;
 // How long after a local write its changes are pushed, and how often to look for other devices' changes.
 const PUSH_DELAY = 4000;
 const PULL_EVERY = 3 * 60 * 1000;
@@ -102,9 +103,26 @@ async function push(userId: number) {
     }
   }
 
+  // Sent a table at a time, parents first, in requests of at most PUSH_CHUNK rows or PUSH_BYTES of data (a few
+  // images fill one).
+  const order = SYNCED_TABLES.map(entry => entry.table as string);
+  const sorted = [...changes].sort((a, b) => order.indexOf(a.tbl) - order.indexOf(b.tbl));
+  const chunks: Change[][] = [];
+  let bytes = 0;
+  for (const change of sorted) {
+    const size = JSON.stringify(rows.get(keyOf(change.tbl, change.row_id)) ?? null).length;
+    const last = chunks[chunks.length - 1];
+    if (!last || last.length >= PUSH_CHUNK || bytes + size > PUSH_BYTES || last[0]!.tbl !== change.tbl) {
+      chunks.push([change]);
+      bytes = size;
+    } else {
+      last.push(change);
+      bytes += size;
+    }
+  }
+
   const supabase = getSupabaseClient();
-  for (let start = 0; start < changes.length; start += PUSH_CHUNK) {
-    const chunk = changes.slice(start, start + PUSH_CHUNK);
+  for (const chunk of chunks) {
     const { error } = await supabase.from("sync_rows").upsert(
       chunk.map(change => ({
         user_id: userId,

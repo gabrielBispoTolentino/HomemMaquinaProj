@@ -1,0 +1,149 @@
+@import "./Binder.css";
+
+/* An image inside a note: a print glued onto the card, with a white border and a slight shadow, its caption
+   written under it. */
+.figure {
+  margin: 0.75rem 0 1rem;
+  border-radius: 6px;
+}
+
+.figure:focus-visible {
+  outline: 2px solid var(--binder-ink);
+  outline-offset: 4px;
+}
+
+.figure__print {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.4rem;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(24, 34, 44, 0.18),
+    0 6px 14px rgba(24, 34, 44, 0.12);
+}
+
+.figure__image {
+  display: block;
+  max-width: 100%;
+  max-height: min(28rem, 60vh);
+  width: auto;
+  height: auto;
+  user-select: none;
+}
+
+.figure__missing {
+  margin: 0;
+  width: min(22rem, 70vw);
+  padding: 2.5rem 1rem;
+  background: var(--binder-paper-shade);
+  color: var(--binder-muted);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.figure__caption {
+  display: block;
+  width: 100%;
+  max-width: 36rem;
+  margin-top: 0.4rem;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  padding: 0.2rem 0;
+  background: transparent;
+  color: var(--binder-muted);
+  font-family: var(--binder-text);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.figure__caption::placeholder {
+  color: #a7b3bc;
+}
+
+.figure__caption:hover,
+.figure__caption:focus {
+  outline: none;
+  border-bottom-color: #b9c5ce;
+}
+
+.figure__caption:focus {
+  color: var(--binder-ink);
+}
+
+/* Only while the image or its caption is chosen. */
+.figure__bar {
+  display: none;
+  margin-top: 0.3rem;
+}
+
+.figure:focus-within .figure__bar {
+  display: flex;
+  transform-origin: top left;
+  animation: unfold-down var(--motion) var(--ease-settle);
+}
+
+.figure__remove {
+  min-height: 2.25rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  background: transparent;
+  color: #a3322a;
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    transform var(--motion-quick) var(--ease-settle),
+    background-color var(--motion) var(--ease-settle);
+}
+
+.figure__remove:hover {
+  background: rgba(163, 50, 42, 0.1);
+}
+
+.figure__remove:active {
+  transform: scale(0.95);
+}
+
+.figure__remove:focus-visible {
+  outline: 2px solid var(--binder-slate);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .figure__remove {
+    min-height: 44px;
+  }
+}
+
+/* An image in the manuscript. */
+.manuscript__figure {
+  margin: 0.6rem 0 1.2rem;
+  white-space: normal;
+}
+
+.manuscript__figure img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  height: auto;
+}
+
+.manuscript__figure figcaption {
+  margin-top: 0.35rem;
+  font-size: 0.9em;
+  font-style: italic;
+  color: var(--binder-muted);
+}
+
+@media print {
+  .manuscript__figure {
+    break-inside: avoid;
+  }
+
+  .manuscript__figure figcaption {
+    color: #000;
+  }
+}

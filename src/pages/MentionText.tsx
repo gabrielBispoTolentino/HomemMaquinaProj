@@ -24,16 +24,22 @@ function pointInText(x: number, y: number): { node: Node; offset: number } | nul
   return range ? { node: range.startContainer, offset: range.startOffset } : null;
 }
 
+// Where in the text a point of this reading view falls (its end when the point isn't on the text), e.g. for a
+// click or a right click.
+export function caretAtPoint(container: HTMLElement, x: number, y: number, length: number) {
+  const point = pointInText(x, y);
+  const run = point?.node.parentElement?.closest<HTMLElement>("[data-start]");
+  const caret = point && run && container.contains(run) ? Number(run.dataset.start) + point.offset : length;
+  return Math.min(caret, length);
+}
+
 // The note's text while it isn't being edited: [[Nome]] shows as just the name, underlined, and one click opens that
 // note. Laid out exactly like the textarea it replaces, so switching between the two doesn't move anything.
 export default function MentionText({ content, byTitle, noteId, onOpenNote, onEdit }: MentionTextProps) {
   const startEditing = (event: React.MouseEvent<HTMLDivElement>) => {
     // Leave a selection alone, so text can still be copied from here.
     if (!window.getSelection()?.isCollapsed) return;
-    const point = pointInText(event.clientX, event.clientY);
-    const run = point?.node.parentElement?.closest<HTMLElement>("[data-start]");
-    const caret = point && run && event.currentTarget.contains(run) ? Number(run.dataset.start) + point.offset : content.length;
-    onEdit(Math.min(caret, content.length), event.currentTarget.scrollTop);
+    onEdit(caretAtPoint(event.currentTarget, event.clientX, event.clientY, content.length), event.currentTarget.scrollTop);
   };
 
   return (

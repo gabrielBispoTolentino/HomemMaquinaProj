@@ -782,6 +782,64 @@
   outline: 3px solid var(--binder-paper);
 }
 
+/* Gadgets are inserted from the note's right-click menu; only touch screens, which have no right click, get a
+   button for it. */
+.note-pane__insert {
+  display: none;
+}
+
+@media (hover: none) {
+  .note-pane__insert {
+    display: inline-block;
+  }
+}
+
+/* The note's right-click menu (GadgetMenu): what can be inserted under the line that was clicked. */
+.gadget-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 11rem;
+  max-width: calc(100vw - 1rem);
+  border-radius: 10px;
+  padding: 0.3rem;
+  background: var(--binder-slate);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  transform-origin: top left;
+  animation: unfold-down var(--motion-quick) var(--ease-settle);
+}
+
+.gadget-menu__heading {
+  margin: 0.3rem 0.6rem 0.25rem;
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--binder-on-slate-muted);
+}
+
+.gadget-menu__item {
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  color: var(--binder-on-slate);
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion-quick) var(--ease-settle);
+}
+
+.gadget-menu__item:hover,
+.gadget-menu__item:focus-visible {
+  outline: none;
+  background: var(--world);
+  color: var(--binder-ink);
+}
+
 .note-pane__name {
   min-width: 0;
   overflow: hidden;

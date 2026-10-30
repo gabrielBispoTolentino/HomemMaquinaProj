@@ -4,13 +4,18 @@ import { categoryColor, createCategory, findCategoryByName, type CategoryItem } 
 import { featureOn, type FeatureId } from "../lib/features";
 import { backlinks, mentionedNotes, notesByTitle, titleKey } from "../lib/mentions";
 import { createNote, trashNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
-import { blankSheet, bodyParts, joinParts, type BodyPart, type Sheet } from "../lib/sheets";
+import { GADGETS, type Gadget } from "../lib/gadgets";
+import { bodyParts, imageIds, joinParts, type BlockKind, type BodyPart } from "../lib/blocks";
+import { loadImages, saveImage, type NoteImage } from "../lib/images";
+import type { Sheet } from "../lib/sheets";
 import { endPosition } from "../lib/order";
 import { subgroupPaths, type SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords, NOTE_STATUSES } from "../lib/writing";
 import type { WorldItem } from "../lib/worlds";
 import { notify } from "./Dialogs.tsx";
-import MentionText from "./MentionText.tsx";
+import GadgetMenu from "./GadgetMenu.tsx";
+import ImageBlock from "./ImageBlock.tsx";
+import MentionText, { caretAtPoint } from "./MentionText.tsx";
 import NoteFields from "./NoteFields.tsx";
 import NoteVersions from "./NoteVersions.tsx";
 import SheetBlock from "./SheetBlock.tsx";
@@ -41,6 +46,9 @@ type NoteEditorProps = {
 };
 
 type SaveState = "saved" | "pending" | "error";
+
+// Where an inserted gadget goes: which piece of text, and where in it (the end of a line) it's cut.
+type Spot = { part: number; cut: number };
 
 const AUTOSAVE_DELAY_MS = 800;
 
@@ -78,8 +86,14 @@ export default function NoteEditor(props: NoteEditorProps) {
   const [mention, setMention] = useState<{ part: number; start: number; query: string; index: number } | null>(null);
   // The piece of text in its textarea; the others show with [[mentions]] as links (MentionText).
   const [editingPart, setEditingPart] = useState<number | null>(null);
-  // A table just inserted, whose first cell gets the cursor.
-  const [focusTable, setFocusTable] = useState<number | null>(null);
+  // A gadget just inserted (by its piece of the body), which gets the cursor.
+  const [focusBlock, setFocusBlock] = useState<number | null>(null);
+  // The right-click menu: where it opens and where what's picked from it goes.
+  const [gadgetMenu, setGadgetMenu] = useState<{ x: number; y: number; spot: Spot } | null>(null);
+  // The pictures the text shows, by id, as they're loaded (see images.ts), and the ids already looked up, so one
+  // that isn't on this device can say so instead of loading forever.
+  const [images, setImages] = useState(new Map<string, NoteImage>());
+  const [lookedUp, setLookedUp] = useState(new Set<string>());
   const [showVersions, setShowVersions] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -92,8 +106,10 @@ export default function NoteEditor(props: NoteEditorProps) {
 
   // The text's textareas, by piece: one for the whole text, or one between each pair of tables.
   const textRefs = useRef(new Map<number, HTMLTextAreaElement>());
-  // Where the caret last was in the text, which is where "+ Tabela" puts a table.
+  // Where the caret last was in the text, where the phones' "Inserir" button puts a gadget.
   const lastCaret = useRef<{ part: number; caret: number } | null>(null);
+  // What last pressed on the page, so a long press on a touch screen keeps the system's own menu (copy, paste).
+  const pointerType = useRef<string | null>(null);
   const noteId = useRef(note?.id ?? null);
   const createdAtRef = useRef(createdAt);
   const draft = useRef<NoteDraft>({ title, content, categoryId, subgroupId, status, synopsis, fields, timeline });
@@ -284,10 +300,12 @@ export default function NoteEditor(props: NoteEditorProps) {
         .slice(0, 6)
     : [];
 
-  // With tables on, the text is cut into pieces of text and tables (see sheets.ts); with them off, or with no table
-  // yet, it's one piece of text, edited exactly as before.
-  const tablesOn = on("tables");
-  const parts: BodyPart[] = tablesOn ? bodyParts(content) : [{ kind: "text", text: content }];
+  // The text cut into pieces of text and the blocks gadgets put in it, tables and images, for those whose feature is
+  // on (see blocks.ts); with none, it's one piece of text, edited exactly as before.
+  const blockKinds: BlockKind[] = [];
+  if (on("tables")) blockKinds.push("table");
+  if (on("images")) blockKinds.push("image");
+  const parts = bodyParts(content, blockKinds);
   const blocks = parts.length > 1;
 
   const setPart = (index: number, part: BodyPart) =>
@@ -318,26 +336,115 @@ export default function NoteEditor(props: NoteEditorProps) {
     });
   };
 
-  // Below the line the caret was on (or at the end of the text), with room to keep writing after it.
-  const insertTable = () => {
-    const spot = lastCaret.current;
-    const index = spot && parts[spot.part]?.kind === "text" ? spot.part : parts.length - 1;
+  const gadgets = GADGETS.filter(gadget => on(gadget.feature));
+
+  // Under the line at this point of a piece of text (where a gadget goes).
+  const spotAt = (part: number, caret: number): Spot => {
+    const text = (parts[part] as { text: string }).text;
+    const lineEnd = text.indexOf("\n", Math.min(caret, text.length));
+    return { part, cut: lineEnd === -1 ? text.length : lineEnd };
+  };
+
+  const endSpot = (): Spot => spotAt(parts.length - 1, Infinity);
+
+  // Where a right click landed: under that line of the text, right after that gadget, or else at the end.
+  const spotFor = (target: HTMLElement, x: number, y: number): Spot => {
+    const block = target.closest<HTMLElement>("[data-part]");
+    if (!block) return endSpot();
+    const index = Number(block.dataset.part);
+    if (parts[index]?.kind !== "text") return { part: index + 1, cut: 0 };
+    if (target instanceof HTMLTextAreaElement) return spotAt(index, target.selectionStart);
+    const reading = target.closest<HTMLElement>(".note-editor__content--reading");
     const text = (parts[index] as { text: string }).text;
-    const caret = spot && spot.part === index ? Math.min(spot.caret, text.length) : text.length;
-    const lineEnd = text.indexOf("\n", caret);
-    const cut = lineEnd === -1 ? text.length : lineEnd;
+    return reading ? spotAt(index, caretAtPoint(reading, x, y, text.length)) : spotAt(index, text.length);
+  };
+
+  // Opens the note's own menu, except where the browser's is wanted: text selected (to copy it), Shift held, or a
+  // long press on a touch screen.
+  const openGadgetMenu = (event: React.MouseEvent) => {
+    const touch = pointerType.current === "touch" || pointerType.current === "pen";
+    pointerType.current = null;
+    if (!gadgets.length || event.shiftKey || touch) return;
+    const target = event.target as HTMLElement;
+    const selected =
+      target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement
+        ? target.selectionStart !== target.selectionEnd
+        : !window.getSelection()?.isCollapsed;
+    if (selected) return;
+    event.preventDefault();
+    // From the keyboard (the menu key, or Shift+F10) there's no pointer: it opens at the element with the cursor.
+    const rect = target.getBoundingClientRect();
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    setGadgetMenu({
+      x: fromKeyboard ? rect.left : event.clientX,
+      y: fromKeyboard ? rect.top + Math.min(rect.height, 32) : event.clientY,
+      spot: spotFor(target, event.clientX, event.clientY),
+    });
+  };
+
+  // Phones have no right click: the "Inserir" button opens the same menu, for the line the caret was last on.
+  const openGadgetMenuFrom = (button: HTMLElement) => {
+    const rect = button.getBoundingClientRect();
+    const caret = lastCaret.current;
+    const spot = caret && parts[caret.part]?.kind === "text" ? spotAt(caret.part, caret.caret) : endSpot();
+    setGadgetMenu({ x: rect.left, y: rect.bottom + 4, spot });
+  };
+
+  // Loads the pictures the text shows that aren't loaded yet: on opening, and when undo or a version brings one back.
+  useEffect(() => {
+    if (!on("images")) return;
+    const wanted = imageIds(content).filter(id => !lookedUp.has(id) && !images.has(id));
+    if (!wanted.length) return;
+    loadImages(wanted)
+      .then(found => setImages(current => new Map([...current, ...found.map(image => [image.id, image] as const)])))
+      .catch(() => {
+        // They show as not on this device.
+      })
+      .finally(() => setLookedUp(current => new Set([...current, ...wanted])));
+  }, [content]);
+
+  // The gadget goes under the spot's line, with room to keep writing after it, and gets the cursor. A picture is
+  // shown at once and stored once the note is (a new note is saved first, so it has an id).
+  const insertGadget = async (gadget: Gadget, spot: Spot) => {
+    setGadgetMenu(null);
+    let block: BodyPart | null;
+    try {
+      block = await gadget.create();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível inserir.");
+      return;
+    }
+    if (!block) return;
+
+    // A file picker may have been open a while: cut the text as it is now.
+    const current = bodyParts(draft.current.content, blockKinds);
+    const index = current[spot.part]?.kind === "text" ? spot.part : current.length - 1;
+    const text = (current[index] as { text: string }).text;
+    const cut = index === spot.part ? Math.min(spot.cut, text.length) : text.length;
+    const image = block.kind === "image" && block.upload ? { id: block.id, ...block.upload } : null;
+    if (image) setImages(known => new Map(known).set(image.id, image));
     edit({
       content: joinParts([
-        ...parts.slice(0, index),
+        ...current.slice(0, index),
         { kind: "text", text: text.slice(0, cut).replace(/\n+$/, "") },
-        { kind: "table", rows: blankSheet() },
+        block,
         { kind: "text", text: text.slice(cut).replace(/^\n+/, "") },
-        ...parts.slice(index + 1),
+        ...current.slice(index + 1),
       ]),
     });
     lastCaret.current = null;
     setEditingPart(null);
-    setFocusTable(index + 1);
+    setFocusBlock(index + 1);
+
+    if (image) {
+      try {
+        const savedId = await ensureSaved();
+        if (!savedId) throw new Error();
+        await saveImage(image, savedId, world.id);
+      } catch {
+        setError("Não foi possível guardar a imagem. Remova-a e tente de novo.");
+      }
+    }
   };
 
   const changeTable = (index: number, rows: Sheet, undo?: string) => {
@@ -346,14 +453,18 @@ export default function NoteEditor(props: NoteEditorProps) {
     if (undo) notify(undo, { label: "Desfazer", run: () => edit({ content: before }) });
   };
 
-  const removeTable = (index: number) => {
+  const removeBlock = (index: number) => {
     const before = draft.current.content;
+    const removed = parts[index];
     edit({ content: joinParts(parts.filter((_, i) => i !== index)) });
     lastCaret.current = null;
-    notify("Tabela removida.", { label: "Desfazer", run: () => edit({ content: before }) });
+    notify(removed?.kind === "image" ? "Imagem removida." : "Tabela removida.", {
+      label: "Desfazer",
+      run: () => edit({ content: before }),
+    });
   };
 
-  // Between tables, each piece of text grows with what's in it, and the page scrolls as a whole.
+  // Between tables and images, each piece of text grows with what's in it, and the page scrolls as a whole.
   useLayoutEffect(() => {
     for (const textarea of textRefs.current.values()) {
       textarea.style.height = "";
@@ -411,9 +522,15 @@ export default function NoteEditor(props: NoteEditorProps) {
           </span>
           <span className="note-pane__name">{title.trim() || "Sem título"}</span>
         </div>
-        {tablesOn && (
-          <button type="button" className="note-pane__tool" onClick={insertTable} title="Inserir uma tabela abaixo da linha do cursor">
-            <span aria-hidden="true">+</span> Tabela
+        {gadgets.length > 0 && (
+          <button
+            type="button"
+            className="note-pane__tool note-pane__insert"
+            aria-haspopup="menu"
+            aria-expanded={gadgetMenu !== null}
+            onClick={event => openGadgetMenuFrom(event.currentTarget)}
+          >
+            <span aria-hidden="true">+</span> Inserir
           </button>
         )}
         {on("versions") && (
@@ -438,7 +555,11 @@ export default function NoteEditor(props: NoteEditorProps) {
         />
       )}
 
-      <section className="note-editor">
+      <section
+        className="note-editor"
+        onPointerDown={event => (pointerType.current = event.pointerType)}
+        onContextMenu={openGadgetMenu}
+      >
         {/* A textarea so long titles wrap; Enter moves on to the note instead of adding a line. */}
         <textarea
           className="note-editor__title"
@@ -552,14 +673,31 @@ export default function NoteEditor(props: NoteEditorProps) {
           {parts.map((part, index) => {
             if (part.kind === "table") {
               return (
-                <SheetBlock
-                  key={index}
-                  rows={part.rows}
-                  onChange={(rows, undo) => changeTable(index, rows, undo)}
-                  onRemove={() => removeTable(index)}
-                  focusFirst={focusTable === index}
-                  onFocused={() => setFocusTable(null)}
-                />
+                <div key={index} data-part={index}>
+                  <SheetBlock
+                    rows={part.rows}
+                    onChange={(rows, undo) => changeTable(index, rows, undo)}
+                    onRemove={() => removeBlock(index)}
+                    focusFirst={focusBlock === index}
+                    onFocused={() => setFocusBlock(null)}
+                  />
+                </div>
+              );
+            }
+
+            if (part.kind === "image") {
+              return (
+                <div key={index} data-part={index}>
+                  <ImageBlock
+                    src={images.get(part.id)?.data}
+                    missing={lookedUp.has(part.id) && !images.has(part.id)}
+                    caption={part.caption}
+                    onCaption={caption => setPart(index, { ...part, caption })}
+                    onRemove={() => removeBlock(index)}
+                    focusFirst={focusBlock === index}
+                    onFocused={() => setFocusBlock(null)}
+                  />
+                </div>
               );
             }
 
@@ -568,7 +706,7 @@ export default function NoteEditor(props: NoteEditorProps) {
             const placeholder =
               index > 0 ? undefined : on("mentions") ? "Escreva o verbete... Use [[ para citar outro verbete." : "Escreva o verbete...";
             return (
-              <div key={index} className="note-editor__part">
+              <div key={index} className="note-editor__part" data-part={index}>
                 {reading ? (
                   <MentionText
                     content={part.text}
@@ -671,6 +809,16 @@ export default function NoteEditor(props: NoteEditorProps) {
           </button>
         </footer>
       </section>
+
+      {gadgetMenu && (
+        <GadgetMenu
+          x={gadgetMenu.x}
+          y={gadgetMenu.y}
+          gadgets={gadgets}
+          onPick={gadget => insertGadget(gadget, gadgetMenu.spot)}
+          onClose={() => setGadgetMenu(null)}
+        />
+      )}
     </article>
   );
 }

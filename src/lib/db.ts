@@ -107,6 +107,19 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS note_snapshots_note_idx ON note_snapshots (note_id, created_at);
 
+  -- Pictures shown in notes (see images.ts), where the note's text has [imagem:id]. data is the picture as a data:
+  -- URL, scaled down when attached. Kept as long as the note is, so undo and versions can bring one back.
+  CREATE TABLE IF NOT EXISTS note_images (
+    id TEXT PRIMARY KEY,
+    note_id TEXT NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    world_id TEXT NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
+    data TEXT NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS note_images_note_idx ON note_images (note_id);
+
   -- Net words written in a volume per local day ("2026-10-27"), for the daily goal and streak.
   CREATE TABLE IF NOT EXISTS writing_days (
     world_id TEXT NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
@@ -158,6 +171,7 @@ export const SYNCED_TABLES = [
   { table: "subgroups", key: (row: string) => `${row}.id` },
   { table: "notes", key: (row: string) => `${row}.id` },
   { table: "note_snapshots", key: (row: string) => `${row}.id` },
+  { table: "note_images", key: (row: string) => `${row}.id` },
   { table: "writing_days", key: (row: string) => `${row}.world_id || '|' || ${row}.day` },
 ] as const;
 

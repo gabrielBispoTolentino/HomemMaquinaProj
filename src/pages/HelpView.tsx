@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { featureOn, type FeatureId } from "../lib/features";
+import { GADGETS } from "../lib/gadgets";
 import "./CSS/Worldbuilding.css";
 
 type HelpViewProps = {
@@ -69,13 +70,28 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
               </li>
             )}
             {on("versions") && <li>Em “Versões”, guarde uma cópia do texto, compare com o atual e volte a ela.</li>}
+            {GADGETS.some(gadget => on(gadget.feature)) && (
+              <li>
+                Clique com o <strong>botão direito</strong> no verbete para inserir algo abaixo daquela linha (
+                {GADGETS.filter(gadget => on(gadget.feature))
+                  .map(gadget => gadget.label.toLowerCase())
+                  .join(", ")}
+                ). No celular, toque em “+ Inserir”, no alto do verbete. Com texto selecionado, ou segurando Shift, o
+                botão direito abre o menu de sempre, para copiar e colar.
+              </li>
+            )}
             {on("tables") && (
               <li>
-                “+ Tabela”, no alto do verbete, põe uma <strong>tabela</strong> abaixo da linha do cursor. Ande entre as
-                células com as setas, Enter e Tab. Comece uma célula com <code>=</code> para fazer contas, como{" "}
+                Numa <strong>tabela</strong>, ande entre as células com as setas, Enter e Tab. Comece uma célula com <code>=</code> para fazer contas, como{" "}
                 <code>=B2*C2</code> ou <code>=SOMA(B2:B5)</code>; também há MÉDIA, MÍN, MÁX, CONT e ARRED, com{" "}
                 <code>;</code> entre os valores. Com o cursor na tabela, a barra abaixo dela acrescenta e exclui linhas e
                 colunas. As tabelas não contam como palavras escritas.
+              </li>
+            )}
+            {on("images") && (
+              <li>
+                Uma <strong>imagem</strong> fica guardada no verbete, reduzida para não pesar, com uma legenda opcional
+                embaixo. Clique nela para ver o botão que a remove. Ela aparece no manuscrito e vai junto no .md baixado.
               </li>
             )}
           </ul>

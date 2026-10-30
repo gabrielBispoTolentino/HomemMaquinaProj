@@ -1,4 +1,5 @@
 import type { NoteItem } from "./notes";
+import { imagesToText } from "./blocks";
 import { tablesToText } from "./sheets";
 
 // [[Nome]] in a note's text mentions the note with that title (the "mentions" feature), and [segredo]…[/segredo]
@@ -72,9 +73,10 @@ export function withoutSecrets(text: string) {
 }
 
 // For exports: [[Nome]] becomes Nome, secret markers go (the secrets themselves stay unless removed first), and
-// tables become tab-separated rows with their formulas worked out.
+// tables become tab-separated rows with their formulas worked out, and images their captions.
 export function plainText(text: string) {
-  return tablesToText(text, "tsv").replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, "").trim();
+  const withImages = imagesToText(text, (_id, caption) => (caption ? `[Imagem: ${caption}]` : "[Imagem]"));
+  return tablesToText(withImages, "tsv").replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, "").trim();
 }
 
 // The timeline's order for a "Quando" like "Ano 312, inverno" or "-50": its first number. null when it has none.

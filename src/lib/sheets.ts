@@ -7,51 +7,18 @@
 //   | Total | =SOMA(B2:B2) |
 //   [/tabela]
 //
-// Kept in the text itself, so search, versions, sync and the Lixeira handle tables with nothing new.
+// Kept in the text itself (see blocks.ts), so search, versions, sync and the Lixeira handle tables with nothing new.
 
 export type Sheet = string[][];
 
-export type BodyPart = { kind: "text"; text: string } | { kind: "table"; rows: Sheet };
-
-// The newline on each side belongs to the block, so the text around it doesn't gain blank lines on every save.
-const BLOCK = /\n?\[tabela\]\n?([\s\S]*?)\n?\[\/tabela\]\n?/gi;
-
-// The text cut at its tables: always text, table, text, …, text, so there is somewhere to write around each table.
-export function bodyParts(content: string): BodyPart[] {
-  const parts: BodyPart[] = [];
-  let last = 0;
-  for (const match of content.matchAll(BLOCK)) {
-    parts.push({ kind: "text", text: content.slice(last, match.index) });
-    parts.push({ kind: "table", rows: parseRows(match[1]!) });
-    last = match.index + match[0].length;
-  }
-  parts.push({ kind: "text", text: content.slice(last) });
-  return parts;
-}
-
-// Back into the note's text. Two texts left side by side (a table between them was removed) become one.
-export function joinParts(parts: BodyPart[]) {
-  let out = "";
-  let previous: BodyPart["kind"] | null = null;
-  for (const part of parts) {
-    if (part.kind === "table") {
-      if (previous !== null) out += "\n";
-      out += tableBlock(part.rows);
-    } else {
-      if (previous === "table") out += "\n";
-      else if (previous === "text" && out && part.text) out += "\n";
-      out += part.text;
-    }
-    previous = part.kind;
-  }
-  return out;
-}
+// The table blocks in a note's text, for the exports below (blocks.ts cuts the text at them for the editor).
+const TABLE_BLOCK = /\n?\[tabela\]\n?([\s\S]*?)\n?\[\/tabela\]\n?/gi;
 
 export function blankSheet(rows = 3, columns = 3): Sheet {
   return Array.from({ length: rows }, () => Array<string>(columns).fill(""));
 }
 
-function tableBlock(rows: Sheet) {
+export function tableBlock(rows: Sheet) {
   return `[tabela]\n${rows.map(serializeRow).join("\n")}\n[/tabela]`;
 }
 
@@ -84,7 +51,7 @@ function parseRow(line: string) {
 }
 
 // Every row as wide as the widest one.
-function parseRows(body: string): Sheet {
+export function parseRows(body: string): Sheet {
   const rows = body
     .split("\n")
     .filter(line => line.trim())
@@ -466,7 +433,7 @@ export function shiftReferences(rows: Sheet, axis: "row" | "col", at: number, de
 // Markdown table whose first row is the header.
 export function tablesToText(text: string, style: "tsv" | "markdown") {
   return text
-    .replace(BLOCK, (_whole, body: string) => {
+    .replace(TABLE_BLOCK, (_whole, body: string) => {
       const shown = evaluateSheet(parseRows(body)).map(cells => cells.map(cell => cell.text));
       if (style === "tsv") return `\n\n${shown.map(cells => cells.join("\t")).join("\n")}\n\n`;
       const line = (cells: string[]) => `| ${cells.map(cell => cell.replace(/\|/g, "\\|")).join(" | ")} |`;
@@ -474,9 +441,4 @@ export function tablesToText(text: string, style: "tsv" | "markdown") {
       return `\n\n${[line(head), line(head.map(() => "---")), ...rest.map(line)].join("\n")}\n\n`;
     })
     .replace(/\n{3,}/g, "\n\n");
-}
-
-// The text without its tables, e.g. for counting the words written.
-export function withoutTables(text: string) {
-  return text.replace(BLOCK, "\n");
 }

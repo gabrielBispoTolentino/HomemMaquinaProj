@@ -51,7 +51,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Romance ou conto: capítulos e cenas em ordem, personagens, manuscrito e metas de escrita.",
     icon: "📖",
     accent: "#f5a7a1",
-    features: ["status", "goals", "manuscript", "corkboard", "versions", "fields", "templates", "mentions"],
+    features: ["status", "goals", "manuscript", "corkboard", "versions", "fields", "templates", "mentions", "images"],
     categories: ["Personagem", "Lugar", "Cena"],
     templates: [
       {
@@ -90,7 +90,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Um mundo para explorar: personagens, lugares, facções, história e as relações entre eles.",
     icon: "🗺",
     accent: "#a8d5c2",
-    features: ["corkboard", "fields", "templates", "mentions", "timeline", "graph", "names", "versions", "tables"],
+    features: ["corkboard", "fields", "templates", "mentions", "timeline", "graph", "names", "versions", "tables", "images"],
     categories: ["Personagem", "Lugar", "Facção", "Evento"],
     templates: [
       {
@@ -139,7 +139,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Artigo, tese ou revisão: seções do texto, fontes, conceitos e controle de versões.",
     icon: "🎓",
     accent: "#a9c7e8",
-    features: ["status", "goals", "manuscript", "versions", "fields", "templates", "mentions", "tables"],
+    features: ["status", "goals", "manuscript", "versions", "fields", "templates", "mentions", "tables", "images"],
     categories: ["Fonte", "Conceito", "Método", "Resultado"],
     templates: [
       {
@@ -184,7 +184,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Sessões, PNJs, locais e missões, com segredos do mestre, dados e tabelas aleatórias.",
     icon: "🎲",
     accent: "#f3d38b",
-    features: ["fields", "templates", "mentions", "timeline", "graph", "names", "secrets", "gmtools", "corkboard", "tables"],
+    features: ["fields", "templates", "mentions", "timeline", "graph", "names", "secrets", "gmtools", "corkboard", "tables", "images"],
     categories: ["PNJ", "Local", "Facção", "Missão", "Tabela"],
     templates: [
       {

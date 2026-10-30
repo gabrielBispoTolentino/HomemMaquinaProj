@@ -1,3 +1,4 @@
+import { imagesToText } from "./blocks";
 import { tablesToText } from "./sheets";
 
 // Dice for the game master's table: "2d6+3", "d20", "4d6-1d4".
@@ -45,7 +46,7 @@ export function rollDice(input: string): DiceRoll | null {
 // The options in a table note: one per line, ignoring blank lines, a leading "- " or "1. ", and the game
 // master's [segredo] markers. A table in the note gives one option per row.
 export function tableOptions(text: string) {
-  return tablesToText(text, "tsv")
+  return tablesToText(imagesToText(text, () => ""), "tsv")
     .split("\n")
     .map(line => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
     .filter(line => line && !/^\[\/?segredo\]$/i.test(line));

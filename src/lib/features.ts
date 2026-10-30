@@ -57,6 +57,12 @@ export const FEATURES = [
     description: "Começar um verbete a partir de um modelo, com categoria, campos e texto prontos.",
   },
   {
+    id: "images",
+    group: "mundo",
+    label: "Imagens",
+    description: "Imagens no meio do texto do verbete, com legenda: figuras, mapas, retratos.",
+  },
+  {
     id: "mentions",
     group: "mundo",
     label: "Menções",
