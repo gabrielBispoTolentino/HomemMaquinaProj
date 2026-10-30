@@ -48,6 +48,7 @@ To change what a kind of volume comes with, edit its entry there. Seeded notes d
 Each volume switches features on and off in its "Recursos" screen (`VolumeSettings`). Off hides the feature's buttons, fields and views but never deletes data. Volumes made before features existed have everything on. The list lives in `src/lib/features.ts`:
 
 - **Escrita**: status (Ideia → Rascunho → Revisão → Final), daily word goal and streak, manuscript (read a subgroup as continuous text, copy, download .md, print), corkboard (index cards with synopsis, drag to re-plot), versions (snapshots, paragraph diff, restore).
+- **Tabelas** (in Escrita): spreadsheet-like tables inside a note, stored in its text as `[tabela]` blocks of `| a | b |` rows (`src/lib/sheets.ts`, `SheetBlock`). A cell starting with `=` is a formula (references, + − * / ^ %, SOMA, MÉDIA, MÍN, MÁX, CONT, ARRED; `;` between arguments, decimal comma). Rows and columns inserted or removed move the formulas' references. The manuscript draws them as tables, the .md download as Markdown tables and copying as tab-separated rows; they don't count as words written.
 - **Mundo e referências**: custom fields, note templates, `[[mentions]]` with autocomplete and backlinks, timeline, relationship map (needs mentions), name check (near-misses like "Auorra"/"Aurora").
 - **RPG**: GM secrets (`[segredo]…[/segredo]`, left out of the players' version of the manuscript), GM table (dice, random tables from notes, initiative).
 

@@ -1,11 +1,13 @@
 import { Capacitor } from "@capacitor/core";
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { featureOn, type FeatureId } from "../lib/features";
 import { MENTION, plainText, withoutSecrets } from "../lib/mentions";
 import type { NoteItem } from "../lib/notes";
+import { bodyParts, evaluateSheet, tablesToText, type Sheet } from "../lib/sheets";
 import { childrenOf } from "../lib/order";
 import type { SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords } from "../lib/writing";
+import "./CSS/Sheets.css";
 import "./CSS/Writing.css";
 
 type ManuscriptViewProps = {
@@ -46,10 +48,58 @@ function headingLevel(depth: number) {
   return Math.min(depth + 2, 6);
 }
 
-// A note's text for reading and exporting: [[Nome]] mentions read as plain names, and in the players' version the
-// game master's secrets are left out.
-function noteText(content: string, players: boolean) {
-  return plainText(players ? withoutSecrets(content) : content);
+// A note's text for reading and exporting: [[Nome]] mentions read as plain names, in the players' version the game
+// master's secrets are left out, and tables are Markdown tables or tab-separated rows (which paste into a
+// spreadsheet as cells), formulas worked out.
+function noteText(content: string, players: boolean, tables: "tsv" | "markdown" = "tsv") {
+  return plainText(tablesToText(players ? withoutSecrets(content) : content, tables));
+}
+
+// A table on the page, with formulas worked out; the first row is its header.
+function SheetTable({ rows }: { rows: Sheet }) {
+  const [head = [], ...body] = evaluateSheet(rows);
+  const text = (value: string) => value.replace(MENTION, "$1");
+  return (
+    <table className="manuscript__table">
+      <thead>
+        <tr>
+          {head.map((cell, col) => (
+            <th key={col} className={cell.kind === "number" ? "manuscript__number" : undefined}>
+              {text(cell.text)}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {body.map((cells, row) => (
+          <tr key={row}>
+            {cells.map((cell, col) => (
+              <td key={col} className={cell.kind === "number" ? "manuscript__number" : undefined} title={cell.title}>
+                {text(cell.text)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// A note on the page: its text (secrets marked, or left out for the players) with its tables drawn as tables.
+function NoteBody({ content, players, secrets, tables }: { content: string; players: boolean; secrets: boolean; tables: boolean }) {
+  const source = players ? withoutSecrets(content) : content;
+  if (!tables) return <>{secrets && !players ? <NoteText content={source} /> : plainText(source)}</>;
+  return (
+    <>
+      {bodyParts(source).map((part, index) =>
+        part.kind === "table" ? (
+          <SheetTable key={index} rows={part.rows} />
+        ) : (
+          <Fragment key={index}>{secrets && !players ? <NoteText content={part.text} /> : plainText(part.text)}</Fragment>
+        ),
+      )}
+    </>
+  );
 }
 
 // On the page, secrets that stay in are marked as such.
@@ -63,7 +113,7 @@ function NoteText({ content }: { content: string }) {
             {part.replace(MENTION, "$1").trim()}
           </span>
         ) : (
-          part.replace(MENTION, "$1")
+          part.replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, "")
         ),
       )}
     </>
@@ -77,7 +127,7 @@ function toMarkdown(title: string, sections: Section[], players: boolean) {
     if (section.kind === "heading") parts.push(`${hashes} ${section.text}`);
     else {
       if (section.note.title.trim()) parts.push(`${hashes} ${section.note.title.trim()}`);
-      const text = noteText(section.note.content, players);
+      const text = noteText(section.note.content, players, "markdown");
       if (text) parts.push(text);
     }
   }
@@ -178,7 +228,7 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
                 </Heading>
               )}
               <div className="manuscript__text">
-                {hideSecrets ? noteText(note.content, true) : secrets ? <NoteText content={note.content} /> : plainText(note.content)}
+                <NoteBody content={note.content} players={hideSecrets} secrets={secrets} tables={featureOn(features, "tables")} />
               </div>
             </section>
           );

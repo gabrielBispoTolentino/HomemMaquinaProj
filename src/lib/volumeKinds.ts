@@ -90,7 +90,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Um mundo para explorar: personagens, lugares, facções, história e as relações entre eles.",
     icon: "🗺",
     accent: "#a8d5c2",
-    features: ["corkboard", "fields", "templates", "mentions", "timeline", "graph", "names", "versions"],
+    features: ["corkboard", "fields", "templates", "mentions", "timeline", "graph", "names", "versions", "tables"],
     categories: ["Personagem", "Lugar", "Facção", "Evento"],
     templates: [
       {
@@ -139,7 +139,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Artigo, tese ou revisão: seções do texto, fontes, conceitos e controle de versões.",
     icon: "🎓",
     accent: "#a9c7e8",
-    features: ["status", "goals", "manuscript", "versions", "fields", "templates", "mentions"],
+    features: ["status", "goals", "manuscript", "versions", "fields", "templates", "mentions", "tables"],
     categories: ["Fonte", "Conceito", "Método", "Resultado"],
     templates: [
       {
@@ -158,6 +158,13 @@ export const VOLUME_KINDS: VolumeKind[] = [
         subgroup: "Conceitos",
       },
       { id: "secao", label: "Seção do texto", content: "Argumento principal:\n\n" },
+      {
+        id: "resultado",
+        label: "Resultado",
+        category: "Resultado",
+        content:
+          "O que os dados mostram:\n[tabela]\n| Grupo | n | Média |\n| Controle |  |  |\n| Experimental |  |  |\n| Total | =SOMA(B2:B3) | =MÉDIA(C2:C3) |\n[/tabela]\nInterpretação:\n",
+      },
     ],
     structure: [
       group("Artigo", [
@@ -177,7 +184,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Sessões, PNJs, locais e missões, com segredos do mestre, dados e tabelas aleatórias.",
     icon: "🎲",
     accent: "#f3d38b",
-    features: ["fields", "templates", "mentions", "timeline", "graph", "names", "secrets", "gmtools", "corkboard"],
+    features: ["fields", "templates", "mentions", "timeline", "graph", "names", "secrets", "gmtools", "corkboard", "tables"],
     categories: ["PNJ", "Local", "Facção", "Missão", "Tabela"],
     templates: [
       {
@@ -209,6 +216,12 @@ export const VOLUME_KINDS: VolumeKind[] = [
         label: "Tabela aleatória",
         category: "Tabela",
         subgroup: "Tabelas",
+      },
+      {
+        id: "inventario",
+        label: "Inventário",
+        content:
+          "Quem carrega:\n[tabela]\n| Item | Qtd | Valor (po) | Total |\n| Corda (15 m) | 1 | 1 | =B2*C2 |\n| Ração de viagem | 5 | 0,5 | =B3*C3 |\n| Soma |  |  | =SOMA(D2:D3) |\n[/tabela]\n",
       },
     ],
     structure: [

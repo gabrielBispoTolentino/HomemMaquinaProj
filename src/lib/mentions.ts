@@ -1,4 +1,5 @@
 import type { NoteItem } from "./notes";
+import { tablesToText } from "./sheets";
 
 // [[Nome]] in a note's text mentions the note with that title (the "mentions" feature), and [segredo]…[/segredo]
 // marks a passage only the game master should see (the "secrets" feature).
@@ -70,9 +71,10 @@ export function withoutSecrets(text: string) {
   return text.replace(SECRET, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-// For exports: [[Nome]] becomes Nome and secret markers go (the secrets themselves stay unless removed first).
+// For exports: [[Nome]] becomes Nome, secret markers go (the secrets themselves stay unless removed first), and
+// tables become tab-separated rows with their formulas worked out.
 export function plainText(text: string) {
-  return text.replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, "").trim();
+  return tablesToText(text, "tsv").replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, "").trim();
 }
 
 // The timeline's order for a "Quando" like "Ano 312, inverno" or "-50": its first number. null when it has none.

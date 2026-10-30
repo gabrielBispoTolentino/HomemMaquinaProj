@@ -1,0 +1,260 @@
+@import "./Binder.css";
+
+/* A table inside a note: a ruled slip pasted onto the page, its first row tinted in the volume's color as the
+   header, with the column letters and row numbers of a spreadsheet around it. */
+.sheet {
+  margin: 0.6rem 0 0.9rem;
+}
+
+.sheet__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-color: #b9c5ce transparent;
+}
+
+.sheet__grid {
+  border-collapse: collapse;
+  font-family: var(--binder-text);
+  font-size: calc(0.95rem * var(--text-scale, 1));
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--binder-ink);
+}
+
+.sheet__head,
+.sheet__corner {
+  min-width: 2rem;
+  border: 1px solid #c4cfd7;
+  padding: 0.1rem 0.4rem;
+  background: var(--binder-paper-shade);
+  color: var(--binder-muted);
+  font-family: var(--binder-display);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  transition:
+    background-color var(--motion) var(--ease-settle),
+    color var(--motion) var(--ease-settle);
+}
+
+.sheet__corner {
+  border-color: transparent #c4cfd7 #c4cfd7 transparent;
+  background: transparent;
+}
+
+/* The chosen cell's column and row, marked in the margins while the cursor is in the table. */
+.sheet:focus-within .sheet__head--active {
+  background: var(--binder-ink);
+  color: var(--binder-paper);
+}
+
+.sheet__grid td {
+  border: 1px solid #c4cfd7;
+  padding: 0;
+  background: #f8fafb;
+}
+
+.sheet__grid tbody tr:first-child td {
+  background: color-mix(in srgb, var(--world) 30%, #f8fafb);
+}
+
+.sheet__cell {
+  display: block;
+  width: 8rem;
+  min-width: 100%;
+  border: 0;
+  padding: 0.4rem 0.55rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+/* Where the browser can, a column is as wide as what's in it, within limits. */
+@supports (field-sizing: content) {
+  .sheet__cell {
+    field-sizing: content;
+    width: auto;
+    min-width: 6.5rem;
+    max-width: 20rem;
+  }
+}
+
+.sheet__grid tbody tr:first-child .sheet__cell {
+  font-weight: 600;
+}
+
+.sheet__cell:focus {
+  outline: 2px solid var(--binder-ink);
+  outline-offset: -2px;
+  background: #fff;
+}
+
+.sheet__cell--number {
+  text-align: right;
+}
+
+.sheet__cell--error {
+  color: #a3322a;
+  font-family: var(--binder-display);
+  font-weight: 600;
+}
+
+/* Only while the cursor is in the table: the chosen cell's contents, and rows and columns. */
+.sheet__bar {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  margin-top: 0.45rem;
+}
+
+.sheet:focus-within .sheet__bar {
+  display: flex;
+  transform-origin: top left;
+  animation: unfold-down var(--motion) var(--ease-settle);
+}
+
+.sheet__formula {
+  flex: 1 1 16rem;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1.5px solid #c4cfd7;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.sheet__formula:focus-within {
+  border-color: var(--binder-ink);
+}
+
+.sheet__ref {
+  flex: none;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  min-width: 2.8rem;
+  padding: 0 0.5rem;
+  background: var(--binder-paper-shade);
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sheet__formula input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  color: var(--binder-ink);
+  font-family: var(--binder-text);
+  font-size: 0.95rem;
+}
+
+.sheet__formula input:focus {
+  outline: none;
+}
+
+.sheet__formula input::placeholder {
+  color: #93a1ac;
+}
+
+.sheet__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sheet__tool {
+  min-height: 2.25rem;
+  border: 1.5px solid #c4cfd7;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  background: transparent;
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform var(--motion-quick) var(--ease-settle),
+    background-color var(--motion) var(--ease-settle);
+}
+
+.sheet__tool:hover {
+  background: var(--binder-paper-shade);
+}
+
+.sheet__tool:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.sheet__tool:focus-visible {
+  outline: 2px solid var(--binder-slate);
+  outline-offset: 2px;
+}
+
+.sheet__tool:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.sheet__tool--danger {
+  border-color: transparent;
+  color: #a3322a;
+}
+
+.sheet__tool--danger:hover {
+  background: rgba(163, 50, 42, 0.1);
+}
+
+/* Fingers: taller cells and buttons. */
+@media (pointer: coarse) {
+  .sheet__cell {
+    min-height: 44px;
+  }
+
+  .sheet__tool {
+    min-height: 44px;
+  }
+}
+
+/* A table in the manuscript: worked-out values, ruled, ready to print. */
+.manuscript__table {
+  margin: 0.4rem 0 1rem;
+  border-collapse: collapse;
+  font-size: 0.95em;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: normal;
+}
+
+.manuscript__table th,
+.manuscript__table td {
+  border: 1px solid #b9c5ce;
+  padding: 0.3rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.manuscript__table th {
+  font-weight: 600;
+  background: color-mix(in srgb, var(--world) 25%, transparent);
+}
+
+.manuscript__table .manuscript__number {
+  text-align: right;
+}
+
+@media print {
+  .manuscript__table th {
+    background: none;
+  }
+
+  .manuscript__table th,
+  .manuscript__table td {
+    border-color: #000;
+  }
+}

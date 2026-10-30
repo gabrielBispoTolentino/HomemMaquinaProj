@@ -69,6 +69,15 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
               </li>
             )}
             {on("versions") && <li>Em “Versões”, guarde uma cópia do texto, compare com o atual e volte a ela.</li>}
+            {on("tables") && (
+              <li>
+                “+ Tabela”, no alto do verbete, põe uma <strong>tabela</strong> abaixo da linha do cursor. Ande entre as
+                células com as setas, Enter e Tab. Comece uma célula com <code>=</code> para fazer contas, como{" "}
+                <code>=B2*C2</code> ou <code>=SOMA(B2:B5)</code>; também há MÉDIA, MÍN, MÁX, CONT e ARRED, com{" "}
+                <code>;</code> entre os valores. Com o cursor na tabela, a barra abaixo dela acrescenta e exclui linhas e
+                colunas. As tabelas não contam como palavras escritas.
+              </li>
+            )}
           </ul>
         </section>
 

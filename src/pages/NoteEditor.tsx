@@ -1,16 +1,19 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { categoryColor, createCategory, findCategoryByName, type CategoryItem } from "../lib/categories";
 import { featureOn, type FeatureId } from "../lib/features";
 import { backlinks, mentionedNotes, notesByTitle, titleKey } from "../lib/mentions";
 import { createNote, trashNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import { blankSheet, bodyParts, joinParts, type BodyPart, type Sheet } from "../lib/sheets";
 import { endPosition } from "../lib/order";
 import { subgroupPaths, type SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords, NOTE_STATUSES } from "../lib/writing";
 import type { WorldItem } from "../lib/worlds";
+import { notify } from "./Dialogs.tsx";
 import MentionText from "./MentionText.tsx";
 import NoteFields from "./NoteFields.tsx";
 import NoteVersions from "./NoteVersions.tsx";
+import SheetBlock from "./SheetBlock.tsx";
 import "./CSS/Notes.css";
 
 type NoteEditorProps = {
@@ -71,9 +74,12 @@ export default function NoteEditor(props: NoteEditorProps) {
   const [synopsis, setSynopsis] = useState(note?.synopsis ?? "");
   const [fields, setFields] = useState(note?.fields ?? preset?.fields ?? []);
   const [timeline, setTimeline] = useState(note?.timeline ?? preset?.timeline ?? "");
-  const [mention, setMention] = useState<{ start: number; query: string; index: number } | null>(null);
-  // Whether the text is in its textarea; otherwise it shows with [[mentions]] as links (MentionText).
-  const [editingContent, setEditingContent] = useState(false);
+  // part is which piece of the text (between tables) the [[mention]] is being typed in; start is within that piece.
+  const [mention, setMention] = useState<{ part: number; start: number; query: string; index: number } | null>(null);
+  // The piece of text in its textarea; the others show with [[mentions]] as links (MentionText).
+  const [editingPart, setEditingPart] = useState<number | null>(null);
+  // A table just inserted, whose first cell gets the cursor.
+  const [focusTable, setFocusTable] = useState<number | null>(null);
   const [showVersions, setShowVersions] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -84,7 +90,10 @@ export default function NoteEditor(props: NoteEditorProps) {
   const [createdAt, setCreatedAt] = useState(note?.created_at ?? null);
   const [updatedAt, setUpdatedAt] = useState(note?.updated_at ?? null);
 
-  const contentRef = useRef<HTMLTextAreaElement>(null);
+  // The text's textareas, by piece: one for the whole text, or one between each pair of tables.
+  const textRefs = useRef(new Map<number, HTMLTextAreaElement>());
+  // Where the caret last was in the text, which is where "+ Tabela" puts a table.
+  const lastCaret = useRef<{ part: number; caret: number } | null>(null);
   const noteId = useRef(note?.id ?? null);
   const createdAtRef = useRef(createdAt);
   const draft = useRef<NoteDraft>({ title, content, categoryId, subgroupId, status, synopsis, fields, timeline });
@@ -275,21 +284,33 @@ export default function NoteEditor(props: NoteEditorProps) {
         .slice(0, 6)
     : [];
 
-  const trackMention = (textarea: HTMLTextAreaElement) => {
+  // With tables on, the text is cut into pieces of text and tables (see sheets.ts); with them off, or with no table
+  // yet, it's one piece of text, edited exactly as before.
+  const tablesOn = on("tables");
+  const parts: BodyPart[] = tablesOn ? bodyParts(content) : [{ kind: "text", text: content }];
+  const blocks = parts.length > 1;
+
+  const setPart = (index: number, part: BodyPart) =>
+    edit({ content: joinParts(parts.map((current, i) => (i === index ? part : current))) });
+
+  const trackMention = (textarea: HTMLTextAreaElement, part: number) => {
+    lastCaret.current = { part, caret: textarea.selectionStart };
     if (!on("mentions")) return;
     const found = mentionAtCaret(textarea.value, textarea.selectionStart);
-    setMention(found ? { ...found, index: 0 } : null);
+    setMention(found ? { ...found, part, index: 0 } : null);
   };
 
   // Completes the [[mention]] with the note's title and puts the caret after it.
   const completeMention = (target: NoteItem) => {
     if (!mention) return;
-    const textarea = contentRef.current!;
-    const after = content.slice(textarea.selectionStart);
+    const textarea = textRefs.current.get(mention.part);
+    const piece = parts[mention.part];
+    if (!textarea || piece?.kind !== "text") return;
+    const after = piece.text.slice(textarea.selectionStart);
     const closing = after.startsWith("]]") ? "" : "]]";
-    const next = content.slice(0, mention.start) + target.title.trim() + closing + after;
+    const next = piece.text.slice(0, mention.start) + target.title.trim() + closing + after;
     const caret = mention.start + target.title.trim().length + 2;
-    edit({ content: next });
+    setPart(mention.part, { kind: "text", text: next });
     setMention(null);
     requestAnimationFrame(() => {
       textarea.focus();
@@ -297,18 +318,60 @@ export default function NoteEditor(props: NoteEditorProps) {
     });
   };
 
+  // Below the line the caret was on (or at the end of the text), with room to keep writing after it.
+  const insertTable = () => {
+    const spot = lastCaret.current;
+    const index = spot && parts[spot.part]?.kind === "text" ? spot.part : parts.length - 1;
+    const text = (parts[index] as { text: string }).text;
+    const caret = spot && spot.part === index ? Math.min(spot.caret, text.length) : text.length;
+    const lineEnd = text.indexOf("\n", caret);
+    const cut = lineEnd === -1 ? text.length : lineEnd;
+    edit({
+      content: joinParts([
+        ...parts.slice(0, index),
+        { kind: "text", text: text.slice(0, cut).replace(/\n+$/, "") },
+        { kind: "table", rows: blankSheet() },
+        { kind: "text", text: text.slice(cut).replace(/^\n+/, "") },
+        ...parts.slice(index + 1),
+      ]),
+    });
+    lastCaret.current = null;
+    setEditingPart(null);
+    setFocusTable(index + 1);
+  };
+
+  const changeTable = (index: number, rows: Sheet, undo?: string) => {
+    const before = draft.current.content;
+    setPart(index, { kind: "table", rows });
+    if (undo) notify(undo, { label: "Desfazer", run: () => edit({ content: before }) });
+  };
+
+  const removeTable = (index: number) => {
+    const before = draft.current.content;
+    edit({ content: joinParts(parts.filter((_, i) => i !== index)) });
+    lastCaret.current = null;
+    notify("Tabela removida.", { label: "Desfazer", run: () => edit({ content: before }) });
+  };
+
+  // Between tables, each piece of text grows with what's in it, and the page scrolls as a whole.
+  useLayoutEffect(() => {
+    for (const textarea of textRefs.current.values()) {
+      textarea.style.height = "";
+      if (blocks) textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  });
+
   const byTitle = notesByTitle(allNotes);
   const mentions = on("mentions") ? mentionedNotes(content, byTitle).filter(item => item.id !== noteId.current) : [];
-  const reading = on("mentions") && !editingContent && content.trim() !== "";
-
-  // Switches to the textarea within the click or key press, so phones still open the keyboard for it.
-  const editContent = (caret = content.length, scrollTop?: number) => {
-    flushSync(() => setEditingContent(true));
-    const textarea = contentRef.current;
+  // Switches a piece of the text to its textarea within the click or key press, so phones still open the keyboard.
+  const editContent = (part = 0, caret?: number, scrollTop?: number) => {
+    flushSync(() => setEditingPart(part));
+    const textarea = textRefs.current.get(part);
     if (!textarea) return;
     if (scrollTop !== undefined) textarea.scrollTop = scrollTop;
+    const at = caret ?? textarea.value.length;
     textarea.focus({ preventScroll: true });
-    textarea.setSelectionRange(caret, caret);
+    textarea.setSelectionRange(at, at);
   };
   const mentionedIn = on("mentions") && title.trim() ? backlinks({ id: noteId.current ?? "", title }, allNotes) : [];
 
@@ -348,6 +411,11 @@ export default function NoteEditor(props: NoteEditorProps) {
           </span>
           <span className="note-pane__name">{title.trim() || "Sem título"}</span>
         </div>
+        {tablesOn && (
+          <button type="button" className="note-pane__tool" onClick={insertTable} title="Inserir uma tabela abaixo da linha do cursor">
+            <span aria-hidden="true">+</span> Tabela
+          </button>
+        )}
         {on("versions") && (
           <button
             type="button"
@@ -480,63 +548,91 @@ export default function NoteEditor(props: NoteEditorProps) {
             maxLength={300}
           />
         )}
-        <div className="note-editor__body">
-          {reading ? (
-            <MentionText
-              content={content}
-              byTitle={byTitle}
-              noteId={noteId.current}
-              onOpenNote={props.onOpenNote}
-              onEdit={editContent}
-            />
-          ) : (
-            <textarea
-              ref={contentRef}
-              className="note-editor__content"
-              value={content}
-              onChange={event => {
-                edit({ content: event.target.value });
-                trackMention(event.target);
-              }}
-              onSelect={event => trackMention(event.currentTarget)}
-              onFocus={() => setEditingContent(true)}
-              onBlur={() => {
-                setEditingContent(false);
-                setTimeout(() => setMention(null), 150);
-              }}
-              onKeyDown={event => {
-                if (!mention || suggestions.length === 0) return;
-                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                  event.preventDefault();
-                  const step = event.key === "ArrowDown" ? 1 : -1;
-                  setMention({ ...mention, index: (mention.index + step + suggestions.length) % suggestions.length });
-                } else if (event.key === "Enter" || event.key === "Tab") {
-                  event.preventDefault();
-                  completeMention(suggestions[mention.index] ?? suggestions[0]!);
-                } else if (event.key === "Escape") {
-                  setMention(null);
-                }
-              }}
-              placeholder={on("mentions") ? "Escreva o verbete... Use [[ para citar outro verbete." : "Escreva o verbete..."}
-            />
-          )}
-          {suggestions.length > 0 && (
-            <ul className="mention-suggest" role="listbox" aria-label="Verbetes para citar">
-              {suggestions.map((item, index) => (
-                <li key={item.id} role="option" aria-selected={index === mention?.index}>
-                  <button
-                    type="button"
-                    onMouseDown={event => {
-                      event.preventDefault();
-                      completeMention(item);
+        <div className={`note-editor__body${blocks ? " note-editor__body--blocks" : ""}`}>
+          {parts.map((part, index) => {
+            if (part.kind === "table") {
+              return (
+                <SheetBlock
+                  key={index}
+                  rows={part.rows}
+                  onChange={(rows, undo) => changeTable(index, rows, undo)}
+                  onRemove={() => removeTable(index)}
+                  focusFirst={focusTable === index}
+                  onFocused={() => setFocusTable(null)}
+                />
+              );
+            }
+
+            const reading = on("mentions") && editingPart !== index && part.text.trim() !== "";
+            // The hint only goes in the first piece of text.
+            const placeholder =
+              index > 0 ? undefined : on("mentions") ? "Escreva o verbete... Use [[ para citar outro verbete." : "Escreva o verbete...";
+            return (
+              <div key={index} className="note-editor__part">
+                {reading ? (
+                  <MentionText
+                    content={part.text}
+                    byTitle={byTitle}
+                    noteId={noteId.current}
+                    onOpenNote={props.onOpenNote}
+                    onEdit={(caret, scrollTop) => editContent(index, caret, scrollTop)}
+                  />
+                ) : (
+                  <textarea
+                    ref={element => {
+                      if (element) textRefs.current.set(index, element);
+                      else textRefs.current.delete(index);
                     }}
-                  >
-                    {item.title.trim()}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+                    className="note-editor__content"
+                    value={part.text}
+                    rows={blocks ? 1 : undefined}
+                    onChange={event => {
+                      setPart(index, { kind: "text", text: event.target.value });
+                      trackMention(event.target, index);
+                    }}
+                    onSelect={event => trackMention(event.currentTarget, index)}
+                    onFocus={() => setEditingPart(index)}
+                    onBlur={() => {
+                      setEditingPart(current => (current === index ? null : current));
+                      setTimeout(() => setMention(null), 150);
+                    }}
+                    onKeyDown={event => {
+                      if (!mention || mention.part !== index || suggestions.length === 0) return;
+                      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                        event.preventDefault();
+                        const step = event.key === "ArrowDown" ? 1 : -1;
+                        setMention({ ...mention, index: (mention.index + step + suggestions.length) % suggestions.length });
+                      } else if (event.key === "Enter" || event.key === "Tab") {
+                        event.preventDefault();
+                        completeMention(suggestions[mention.index] ?? suggestions[0]!);
+                      } else if (event.key === "Escape") {
+                        setMention(null);
+                      }
+                    }}
+                    placeholder={placeholder}
+                    aria-label={blocks ? "Texto do verbete" : undefined}
+                  />
+                )}
+                {mention?.part === index && suggestions.length > 0 && (
+                  <ul className="mention-suggest" role="listbox" aria-label="Verbetes para citar">
+                    {suggestions.map((item, itemIndex) => (
+                      <li key={item.id} role="option" aria-selected={itemIndex === mention.index}>
+                        <button
+                          type="button"
+                          onMouseDown={event => {
+                            event.preventDefault();
+                            completeMention(item);
+                          }}
+                        >
+                          {item.title.trim()}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </div>
         {on("secrets") && /\[segredo\]/i.test(content) && (
           <p className="note-editor__hint">Os trechos entre [segredo] e [/segredo] ficam de fora da versão dos jogadores.</p>

@@ -39,6 +39,12 @@ export const FEATURES = [
     description: "Guardar versões de um verbete, comparar com o texto atual e restaurar.",
   },
   {
+    id: "tables",
+    group: "escrita",
+    label: "Tabelas",
+    description: "Tabelas como as de uma planilha dentro do verbete, com fórmulas como =SOMA(B2:B5).",
+  },
+  {
     id: "fields",
     group: "mundo",
     label: "Campos personalizados",
