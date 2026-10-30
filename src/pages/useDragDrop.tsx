@@ -136,8 +136,9 @@ export function useDragDrop<Intent>({ resolve, onDrop }: Options<Intent>) {
     cleanup.current = finish;
   };
 
-  // Spread onto anything that can be dragged.
+  // Spread onto anything that can be dragged. The item being dragged is marked, so it shows faint in place.
   const dragHandle = (source: DragSource) => ({
+    "data-dragging": drag?.source.kind === source.kind && drag.source.id === source.id ? "" : undefined,
     onPointerDown: (event: React.PointerEvent<HTMLElement>) => begin(event, source),
     onClickCapture: (event: React.MouseEvent) => {
       if (suppressClick.current) {

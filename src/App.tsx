@@ -1,7 +1,9 @@
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import "./index.css";
+import "./pages/CSS/Motion.css";
 import { signOut, type LoggedUser } from "./lib/auth";
 import { endSyncSession, setSyncEnabled, startSyncSession } from "./lib/sync";
 import Cadastrar from "./pages/Cadastrar.tsx";
@@ -25,8 +27,20 @@ const parentScreen: Record<Screen, Screen | null> = {
   notes: "worlds",
 };
 
+// Changes screen inside a View Transition where the browser has them: the old screen crossfades into the new one,
+// and a volume's divider grows into the open volume's band (both are named "volume-band", see Motion.css).
+function withTransition(update: () => void) {
+  const doc = document as Document & { startViewTransition?: (callback: () => void) => unknown };
+  if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    update();
+    return;
+  }
+  doc.startViewTransition(() => flushSync(update));
+}
+
 export function App() {
-  const [screen, setScreen] = useState<Screen>("main");
+  const [screen, setScreenNow] = useState<Screen>("main");
+  const setScreen = (next: Screen) => withTransition(() => setScreenNow(next));
   const [currentUser, setCurrentUser] = useState<LoggedUser | null>(null);
   const [currentWorld, setCurrentWorld] = useState<WorldItem | null>(null);
   // Set by the volume screen, which handles back itself while its sidebar or a note is open.
@@ -39,16 +53,17 @@ export function App() {
     setScreen(choice === null ? "sync" : "worlds");
   };
 
-  const goToScreen = (next: Screen) => {
-    // Back to the main screen is a logout.
-    if (next === "main" && currentUser) {
-      endSyncSession();
-      void signOut();
-      setCurrentUser(null);
-      setCurrentWorld(null);
-    }
-    setScreen(next);
-  };
+  const goToScreen = (next: Screen) =>
+    withTransition(() => {
+      // Back to the main screen is a logout.
+      if (next === "main" && currentUser) {
+        endSyncSession();
+        void signOut();
+        setCurrentUser(null);
+        setCurrentWorld(null);
+      }
+      setScreenNow(next);
+    });
 
   // Android hardware back button: go up one screen, or exit from the main screen.
   useEffect(() => {
@@ -112,10 +127,12 @@ export function App() {
         <WorldNotes
           world={currentWorld}
           onBack={() => setScreen("worlds")}
-          onDeleted={() => {
-            setCurrentWorld(null);
-            setScreen("worlds");
-          }}
+          onDeleted={() =>
+            withTransition(() => {
+              setCurrentWorld(null);
+              setScreenNow("worlds");
+            })
+          }
           backHandler={volumeBack}
         />
       );
@@ -126,10 +143,12 @@ export function App() {
         <WorldList
           user={currentUser}
           onBack={() => goToScreen("main")}
-          onOpenWorld={world => {
-            setCurrentWorld(world);
-            setScreen("notes");
-          }}
+          onOpenWorld={world =>
+            withTransition(() => {
+              setCurrentWorld(world);
+              setScreenNow("notes");
+            })
+          }
         />
       );
     }

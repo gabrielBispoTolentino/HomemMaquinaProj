@@ -5,7 +5,7 @@ import type { NoteItem } from "../lib/notes";
 import { childrenOf, type ChildItem } from "../lib/order";
 import { subgroupPaths, subtreeIds, type SubgroupItem } from "../lib/subgroups";
 import { statusInfo } from "../lib/writing";
-import type { DropIntent } from "./WorldNotes.tsx";
+import type { DropIntent, Landed } from "./WorldNotes.tsx";
 import type { DragSource } from "./useDragDrop.tsx";
 
 type DragHandle = (source: DragSource) => Record<string, unknown>;
@@ -24,6 +24,7 @@ type NoteTreeProps = {
   dragHandle: DragHandle;
   // Where the item being dragged would land, to mark it.
   dropAt: DropIntent | null;
+  landed: Landed;
   onOpen: (note: NoteItem) => void;
   onNewNote: (subgroupId: string | null) => void;
   onNewSubgroup: (parentId: string) => void;
@@ -47,12 +48,13 @@ type NoteRowProps = {
   categories: CategoryItem[];
   showStatus: boolean;
   open: boolean;
+  landed: boolean;
   dragHandle: DragHandle;
   dropAt: DropIntent | null;
   onOpen: () => void;
 };
 
-function NoteRow({ note, categories, showStatus, open, dragHandle, dropAt, onOpen }: NoteRowProps) {
+function NoteRow({ note, categories, showStatus, open, landed, dragHandle, dropAt, onOpen }: NoteRowProps) {
   const category = categories.find(item => item.id === note.category_id);
   const status = showStatus ? statusInfo(note.status) : null;
   const title = note.title.trim() || "Sem título";
@@ -61,7 +63,7 @@ function NoteRow({ note, categories, showStatus, open, dragHandle, dropAt, onOpe
     <li>
       <button
         type="button"
-        className="tree-note"
+        className={`tree-note${landed ? " tree-note--landed" : ""}`}
         aria-current={open ? "page" : undefined}
         onClick={onOpen}
         data-drop="item"
@@ -218,7 +220,7 @@ function SubgroupMenu(props: SubgroupMenuProps) {
 // The volume's listing in the sidebar. Subgroups are collapsible, nestable folders; inside each one (and at the top
 // of the volume) subgroups and notes share one order, which is changed by dragging.
 export default function NoteTree(props: NoteTreeProps) {
-  const { notes, subgroups, categories, openNoteId, filtering, addingIn, dragHandle, dropAt } = props;
+  const { notes, subgroups, categories, openNoteId, filtering, addingIn, dragHandle, dropAt, landed } = props;
   // One menu and one rename at a time, across the whole tree.
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -259,7 +261,7 @@ export default function NoteTree(props: NoteTreeProps) {
     return (
       <li key={subgroup.id} className="tree-group">
         <div
-          className="tree-group__head"
+          className={`tree-group__head${landed?.kind === "subgroup" && landed.id === subgroup.id ? " tree-group__head--landed" : ""}`}
           data-drop="item"
           data-kind="subgroup"
           data-id={subgroup.id}
@@ -341,6 +343,7 @@ export default function NoteTree(props: NoteTreeProps) {
         categories={categories}
         showStatus={featureOn(props.features, "status")}
         open={child.item.id === openNoteId}
+        landed={landed?.kind === "note" && landed.id === child.item.id}
         dragHandle={dragHandle}
         dropAt={dropAt}
         onOpen={() => props.onOpen(child.item)}

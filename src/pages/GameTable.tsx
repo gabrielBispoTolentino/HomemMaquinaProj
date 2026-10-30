@@ -114,6 +114,8 @@ function RandomTables({ notes, categories, subgroups, onOpenNote }: RandomTables
   const candidates = marked.length ? marked : rollable;
   const [tableId, setTableId] = useState(candidates[0]?.id ?? "");
   const [result, setResult] = useState<string | null>(null);
+  // Counts the draws, so drawing the same line twice still shows a new slip.
+  const [draws, setDraws] = useState(0);
   const table = candidates.find(note => note.id === tableId) ?? null;
 
   return (
@@ -144,14 +146,20 @@ function RandomTables({ notes, categories, subgroups, onOpenNote }: RandomTables
             <button
               type="button"
               className="writing-button writing-button--accent"
-              onClick={() => table && setResult(pickRandom(tableOptions(table.content)))}
+              onClick={() => {
+                if (!table) return;
+                setResult(pickRandom(tableOptions(table.content)));
+                setDraws(count => count + 1);
+              }}
             >
               Rolar
             </button>
           </div>
           {result && (
             <p className="table-tool__result" aria-live="polite">
-              {result}
+              <span key={draws} className="table-tool__draw">
+                {result}
+              </span>
             </p>
           )}
           {table && (

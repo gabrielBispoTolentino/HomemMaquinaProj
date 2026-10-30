@@ -186,8 +186,12 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
               type="button"
               className="world-divider"
               data-tab={index % 3}
-              style={{ "--world": world.accent_color ?? "#f5a7a1" } as React.CSSProperties}
-              onClick={() => onOpenWorld(world)}
+              style={{ "--world": world.accent_color ?? "#f5a7a1", "--i": Math.min(index, 8) } as React.CSSProperties}
+              onClick={event => {
+                // This divider grows into the open volume's band (see withTransition in App.tsx).
+                event.currentTarget.style.setProperty("view-transition-name", "volume-band");
+                onOpenWorld(world);
+              }}
             >
               <span className="world-divider__tab" aria-hidden="true">
                 {world.icon ?? "✎"}

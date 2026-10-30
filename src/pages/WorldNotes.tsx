@@ -68,6 +68,9 @@ const VOLUME_VIEWS = [
   { kind: "table", feature: "gmtools", label: "Mesa" },
 ] as const;
 
+// A note or subgroup just created, moved or restored, which glows for a moment where it landed.
+export type Landed = { kind: "note" | "subgroup"; id: string } | null;
+
 // Where a dragged item would land: before or after a note or subgroup, inside a subgroup (at its end), or at the
 // end of a list ("end", whose id is the list's subgroup, or null for the top of the volume).
 export type DropIntent =
@@ -156,6 +159,10 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   const [sidebarHidden, setSidebarHidden] = useState(initialSidebarHidden);
   // Goes up whenever a note enters or leaves the Lixeira from elsewhere, so an open Lixeira reloads.
   const [trashChanges, setTrashChanges] = useState(0);
+  const [landed, setLanded] = useState<Landed>(null);
+  // The listing as last drawn, for telling a new note's first save apart from later ones.
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
   const searchRef = useRef<HTMLInputElement>(null);
   const accent = world.accent_color ?? "#f5a7a1";
   const openNote = view?.kind === "note" ? view : null;
@@ -181,6 +188,13 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   for (const note of notes) {
     if (note.category_id) categoryNoteCounts[note.category_id] = (categoryNoteCounts[note.category_id] ?? 0) + 1;
   }
+
+  // The glow is a one-off; clearing it means a row redrawn later (e.g. a subgroup reopened) doesn't glow again.
+  useEffect(() => {
+    if (!landed) return;
+    const timer = setTimeout(() => setLanded(null), 1200);
+    return () => clearTimeout(timer);
+  }, [landed]);
 
   const refreshStats = () => {
     loadWritingStats(world.id)
@@ -399,6 +413,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   // The editor reports every save. A new note's first save also gives the open note its id, unless the user
   // has already moved on to something else. The listing keeps its own position for a note it already has.
   const handleSaved = (saved: NoteItem, key: number) => {
+    if (!notesRef.current.some(note => note.id === saved.id)) setLanded({ kind: "note", id: saved.id });
     setNotes(current =>
       current.some(note => note.id === saved.id)
         ? current.map(note => (note.id === saved.id ? { ...saved, position: note.position } : note))
@@ -411,6 +426,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   // A note restored from the Lixeira, by "Desfazer" or from the Lixeira itself, back in the listing.
   const handleRestored = (restored: NoteItem) => {
     setNotes(current => [...current.filter(note => note.id !== restored.id), restored]);
+    setLanded({ kind: "note", id: restored.id });
     expandTo(restored.subgroup_id);
     setTrashChanges(count => count + 1);
   };
@@ -588,6 +604,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
         ),
       );
       expandTo(parentId);
+      setLanded(source);
       setTreeError("");
     } catch (err) {
       setTreeError(err instanceof Error ? err.message : "Erro ao mover.");
@@ -906,6 +923,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
                 addingIn={addingIn}
                 dragHandle={treeDrag.dragHandle}
                 dropAt={treeDrag.drag?.intent ?? null}
+                landed={landed}
                 onOpen={openExisting}
                 onNewNote={openNewIn}
                 onNewSubgroup={startSubgroupIn}
@@ -1017,6 +1035,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
             features={features}
             dragHandle={boardDrag.dragHandle}
             dropAt={boardDrag.drag?.intent ?? null}
+            landed={landed}
             headStart={showSidebarButton}
             onOpenNote={openExisting}
             onOpenBoard={showBoard}

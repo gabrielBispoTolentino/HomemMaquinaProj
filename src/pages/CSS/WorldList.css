@@ -170,6 +170,23 @@
   transform: translateY(2px);
 }
 
+/* Pointing at a divider lifts it a little out of the binder. */
+@media (hover: hover) {
+  .world-divider {
+    transition: transform var(--motion) var(--ease-settle);
+  }
+
+  .world-divider:hover:not(:active) {
+    transform: translateY(-4px);
+  }
+}
+
+/* When the shelf first shows, the tabs rise out of their dividers one after another. */
+.world-divider__tab {
+  animation: tab-rise var(--motion-slow) var(--ease-settle) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms + 60ms);
+}
+
 .world-divider:focus-visible {
   outline: 3px solid var(--binder-paper);
   outline-offset: 3px;
@@ -184,6 +201,7 @@
   place-items: center;
   padding: 1rem;
   background: rgba(14, 21, 28, 0.72);
+  animation: fade-in var(--motion) ease-out;
 }
 
 .world-list__dialog {
@@ -195,6 +213,7 @@
   background: var(--binder-paper);
   color: var(--binder-ink);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+  animation: card-drop var(--motion-slow) var(--ease-settle);
 }
 
 .world-list__dialog-header {
@@ -305,6 +324,9 @@
 
 .kind-option {
   position: relative;
+  transition:
+    background-color var(--motion) var(--ease-settle),
+    border-color var(--motion) var(--ease-settle);
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;

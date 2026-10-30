@@ -485,6 +485,12 @@
 .dice-history__latest .dice-history__total {
   font-size: 2rem;
   color: var(--world);
+  animation: tumble var(--motion-slow) var(--ease-spring);
+}
+
+.table-tool__draw {
+  display: block;
+  animation: draw var(--motion-slow) var(--ease-settle);
 }
 
 .dice-history__latest {

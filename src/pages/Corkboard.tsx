@@ -7,7 +7,7 @@ import { childrenOf } from "../lib/order";
 import type { SubgroupItem } from "../lib/subgroups";
 import { statusInfo } from "../lib/writing";
 import { dropMark } from "./NoteTree.tsx";
-import type { DropIntent } from "./WorldNotes.tsx";
+import type { DropIntent, Landed } from "./WorldNotes.tsx";
 import type { DragSource } from "./useDragDrop.tsx";
 import "./CSS/Writing.css";
 
@@ -21,6 +21,7 @@ type CorkboardProps = {
   features: Set<FeatureId>;
   dragHandle: (source: DragSource) => Record<string, unknown>;
   dropAt: DropIntent | null;
+  landed: Landed;
   headStart?: ReactNode;
   onOpenNote: (note: NoteItem) => void;
   onOpenBoard: (subgroupId: string | null) => void;
@@ -36,7 +37,8 @@ function cardText(note: NoteItem) {
 // A subgroup's notes and subgroups as index cards, in order, for plotting: drag a card to move it, or onto a
 // subgroup's card to put it inside.
 export default function Corkboard(props: CorkboardProps) {
-  const { rootId, notes, subgroups, categories, dragHandle, dropAt } = props;
+  const { rootId, notes, subgroups, categories, dragHandle, dropAt, landed } = props;
+  const pinned = (kind: "note" | "subgroup", id: string) => (landed?.kind === kind && landed.id === id ? " board-card--landed" : "");
   const root = subgroups.find(subgroup => subgroup.id === rootId) ?? null;
   const children = childrenOf(rootId, notes, subgroups);
 
@@ -82,7 +84,7 @@ export default function Corkboard(props: CorkboardProps) {
               <li key={subgroup.id}>
                 <button
                   type="button"
-                  className="board-card board-card--folder"
+                  className={`board-card board-card--folder${pinned("subgroup", subgroup.id)}`}
                   onClick={() => props.onOpenBoard(subgroup.id)}
                   data-drop="item"
                   data-kind="subgroup"
@@ -105,7 +107,7 @@ export default function Corkboard(props: CorkboardProps) {
             <li key={note.id}>
               <button
                 type="button"
-                className="board-card"
+                className={`board-card${pinned("note", note.id)}`}
                 style={category ? ({ "--category": categoryColor(categories, category.id) } as React.CSSProperties) : undefined}
                 onClick={() => props.onOpenNote(note)}
                 data-drop="item"

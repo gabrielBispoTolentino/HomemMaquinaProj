@@ -3,6 +3,7 @@
 /* The open volume: its listing in a sidebar on the left, the open note in the middle. */
 .volume {
   display: flex;
+  overflow-x: clip;
   height: 100vh;
   height: 100dvh;
   background: var(--binder-slate);
@@ -18,10 +19,21 @@
   min-height: 0;
   background: var(--binder-slate-deep);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+  transition:
+    margin-left var(--motion-slow) var(--ease-settle),
+    transform var(--motion-slow) var(--ease-settle),
+    visibility 0s;
 }
 
+/* Hiding slides the sidebar out to the left and the page follows it across; visibility goes last, so it can't be
+   tabbed into once gone. */
 .volume--sidebar-hidden .volume__sidebar {
-  display: none;
+  margin-left: -320px;
+  visibility: hidden;
+  transition:
+    margin-left var(--motion-slow) var(--ease-settle),
+    transform var(--motion-slow) var(--ease-settle),
+    visibility 0s linear var(--motion-slow);
 }
 
 /* The volume's divider: its color as a band across the top of the sidebar. */
@@ -33,6 +45,12 @@
   padding: 0.75rem 0.5rem 0.9rem;
   background: var(--world);
   color: var(--binder-ink);
+}
+
+/* The divider tapped on the shelf grows into this band (see withTransition in App.tsx). Only while the sidebar
+   shows: a closed drawer would pull the divider off the screen. */
+.volume:not(.volume--sidebar-hidden) .volume__band {
+  view-transition-name: volume-band;
 }
 
 .volume__band-button {
@@ -139,6 +157,8 @@
   padding: 0.3rem;
   background: var(--binder-slate);
   box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.35);
+  transform-origin: bottom left;
+  animation: unfold-up var(--motion) var(--ease-settle);
 }
 
 .template-menu__group {
@@ -256,6 +276,11 @@
   padding: 1.25rem 2rem;
 }
 
+/* Whatever opens in the middle (a note, the manuscript, the corkboard…) is pulled out from the listing's side. */
+.volume__main > :not(.volume__blank) {
+  animation: page-in var(--motion-slow) var(--ease-settle);
+}
+
 /* With no note open, the button that shows the sidebar again sits alone in the corner. */
 .volume__blank {
   position: absolute;
@@ -276,6 +301,9 @@
   align-items: center;
   gap: 0.1rem;
   border-radius: 8px;
+  transition:
+    background-color var(--motion) var(--ease-settle),
+    box-shadow var(--motion-quick) var(--ease-settle);
 }
 
 .tree-group__head:hover {
@@ -372,6 +400,8 @@
   padding: 0.3rem;
   background: var(--binder-slate);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transform-origin: top left;
+  animation: unfold-down var(--motion) var(--ease-settle);
 }
 
 .tree-menu__heading {
@@ -440,6 +470,8 @@
   margin: 0 0 0.35rem 0.95rem;
   padding-left: 0.4rem;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
+  transform-origin: top;
+  animation: unfold-down var(--motion) var(--ease-settle);
 }
 
 .tree-note {
@@ -457,6 +489,11 @@
   font-weight: 500;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color var(--motion) var(--ease-settle),
+    color var(--motion) var(--ease-settle),
+    box-shadow var(--motion-quick) var(--ease-settle),
+    opacity var(--motion) var(--ease-settle);
 }
 
 .tree-note:hover {
@@ -923,6 +960,13 @@
   color: #a3322a;
 }
 
+/* Each finished save is stamped onto the page, in ink that dries to the muted color. */
+.note-editor__stamp {
+  display: inline-block;
+  transform-origin: left center;
+  animation: stamp 520ms var(--ease-settle);
+}
+
 /* Ideia → Rascunho → Revisão → Final; clicking the current one clears it. */
 .note-editor__statuses {
   flex: none;
@@ -1111,6 +1155,8 @@
   background: var(--binder-slate);
   list-style: none;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  transform-origin: bottom left;
+  animation: unfold-up var(--motion-quick) var(--ease-settle);
 }
 
 .mention-suggest button {
@@ -1336,6 +1382,18 @@ body.is-dragging * {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
   transform: translate(12px, 12px) rotate(-2deg);
   pointer-events: none;
+  animation: lift var(--motion-quick) var(--ease-settle);
+}
+
+/* What's being dragged stays faint in its old place until it's dropped. */
+[data-dragging] {
+  opacity: 0.35;
+}
+
+/* Just created, moved or restored: the row glows where it landed (see `landed` in WorldNotes). */
+.tree-note--landed,
+.tree-group__head--landed {
+  animation: landed 1s ease-out;
 }
 
 /* Where a dragged row would land: a line above or below a row, or a ring around a subgroup it would go into. */
@@ -1372,11 +1430,17 @@ body.is-dragging * {
     box-shadow: 12px 0 32px rgba(0, 0, 0, 0.4);
   }
 
+  .volume--sidebar-hidden .volume__sidebar {
+    margin-left: 0;
+    transform: translateX(calc(-100% - 40px));
+  }
+
   .volume__backdrop {
     position: fixed;
     z-index: 15;
     inset: 0;
     background: rgba(14, 21, 28, 0.6);
+    animation: fade-in var(--motion-slow) ease-out;
   }
 
   .volume__main {

@@ -93,6 +93,8 @@ export default function NoteEditor(props: NoteEditorProps) {
   // Set by Escape so the blur that follows discards the new category instead of creating it.
   const cancelCategory = useRef(false);
   const dirty = useRef(false);
+  // Whether anything was typed since opening, so "Arquivado" is only stamped after a real save, not on opening.
+  const edited = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Saves run one after another so a new note is never inserted twice.
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -180,6 +182,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     setTimeline(next.timeline);
     draft.current = next;
     dirty.current = true;
+    edited.current = true;
     setSaveState("pending");
 
     if (timer.current) clearTimeout(timer.current);
@@ -385,7 +388,10 @@ export default function NoteEditor(props: NoteEditorProps) {
           autoFocus={!note}
         />
         <p className={`note-editor__status${saveState === "error" ? " note-editor__status--error" : ""}`} role="status">
-          {statusText}
+          {/* Remounted on each change of state, so every finished save is stamped anew. */}
+          <span key={saveState} className={saveState === "saved" && edited.current ? "note-editor__stamp" : undefined}>
+            {statusText}
+          </span>
         </p>
         {on("status") && (
           <div className="note-editor__statuses" role="group" aria-label="Status">
