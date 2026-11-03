@@ -1,5 +1,6 @@
 import { queryAll, queryOne, run, type Statement } from "./db";
 import { withoutBlocks } from "./blocks";
+import { withoutCitationMarkup } from "./citations";
 
 // Writing aids for books (and any long text): note status, word counts, and a daily word goal per volume.
 
@@ -19,7 +20,7 @@ export function statusInfo(status: string | null) {
 // Letters and digits, with apostrophes and hyphens inside a word ("d'água", "guarda-chuva") counting as one.
 // Only prose counts: tables and images are left out of the words written.
 export function countWords(text: string) {
-  return withoutBlocks(text).match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
+  return withoutCitationMarkup(withoutBlocks(text)).match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)?.length ?? 0;
 }
 
 export function formatWords(count: number) {

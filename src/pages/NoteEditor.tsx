@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { flushSync } from "react-dom";
 import { categoryColor, createCategory, findCategoryByName, type CategoryItem } from "../lib/categories";
 import { featureOn, type FeatureId } from "../lib/features";
+import { citationAtCaret, citedSources, citesTitle, isSource, sourcesByTitle, type SourceNote } from "../lib/citations";
 import { backlinks, mentionedNotes, notesByTitle, titleKey } from "../lib/mentions";
 import { createNote, trashNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import { citationText, referenceFromFields } from "../lib/references";
 import { GADGETS, type Gadget } from "../lib/gadgets";
 import { bodyParts, imageIds, joinParts, type BlockKind, type BodyPart } from "../lib/blocks";
 import { loadImages, saveImage, type NoteImage } from "../lib/images";
@@ -13,11 +15,12 @@ import { subgroupPaths, type SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords, NOTE_STATUSES } from "../lib/writing";
 import type { WorldItem } from "../lib/worlds";
 import { notify } from "./Dialogs.tsx";
-import GadgetMenu from "./GadgetMenu.tsx";
+import GadgetMenu, { type MenuItem } from "./GadgetMenu.tsx";
 import ImageBlock from "./ImageBlock.tsx";
 import MentionText, { caretAtPoint } from "./MentionText.tsx";
 import NoteFields from "./NoteFields.tsx";
 import NoteVersions from "./NoteVersions.tsx";
+import ReferenceForm from "./ReferenceForm.tsx";
 import SheetBlock from "./SheetBlock.tsx";
 import "./CSS/Notes.css";
 
@@ -49,6 +52,13 @@ type SaveState = "saved" | "pending" | "error";
 
 // Where an inserted gadget goes: which piece of text, and where in it (the end of a line) it's cut.
 type Spot = { part: number; cut: number };
+
+// Written into the text where the note was clicked, from the same menu as the gadgets: what goes in, and where the
+// caret goes in it.
+const INLINE_INSERTS = [
+  { id: "cite", feature: "citations", label: "Citar fonte", text: "[@]", caret: 2 },
+  { id: "footnote", feature: "footnotes", label: "Nota de rodapé", text: "[nota][/nota]", caret: 6 },
+] as const;
 
 const AUTOSAVE_DELAY_MS = 800;
 
@@ -82,14 +92,23 @@ export default function NoteEditor(props: NoteEditorProps) {
   const [synopsis, setSynopsis] = useState(note?.synopsis ?? "");
   const [fields, setFields] = useState(note?.fields ?? preset?.fields ?? []);
   const [timeline, setTimeline] = useState(note?.timeline ?? preset?.timeline ?? "");
-  // part is which piece of the text (between tables) the [[mention]] is being typed in; start is within that piece.
-  const [mention, setMention] = useState<{ part: number; start: number; query: string; index: number } | null>(null);
+  const [reference, setReference] = useState(note ? note.reference : preset?.reference ?? null);
+  // part is which piece of the text (between tables) the [[mention]] or [@citation] is being typed in; start is
+  // within that piece.
+  const [mention, setMention] = useState<{
+    kind: "mention" | "citation";
+    part: number;
+    start: number;
+    query: string;
+    index: number;
+  } | null>(null);
   // The piece of text in its textarea; the others show with [[mentions]] as links (MentionText).
   const [editingPart, setEditingPart] = useState<number | null>(null);
   // A gadget just inserted (by its piece of the body), which gets the cursor.
   const [focusBlock, setFocusBlock] = useState<number | null>(null);
-  // The right-click menu: where it opens and where what's picked from it goes.
-  const [gadgetMenu, setGadgetMenu] = useState<{ x: number; y: number; spot: Spot } | null>(null);
+  // The right-click menu: where it opens and where what's picked from it goes (a gadget under the line, a citation
+  // or a footnote right at the caret).
+  const [gadgetMenu, setGadgetMenu] = useState<{ x: number; y: number; spot: Spot; caret: Spot } | null>(null);
   // The pictures the text shows, by id, as they're loaded (see images.ts), and the ids already looked up, so one
   // that isn't on this device can say so instead of loading forever.
   const [images, setImages] = useState(new Map<string, NoteImage>());
@@ -112,7 +131,7 @@ export default function NoteEditor(props: NoteEditorProps) {
   const pointerType = useRef<string | null>(null);
   const noteId = useRef(note?.id ?? null);
   const createdAtRef = useRef(createdAt);
-  const draft = useRef<NoteDraft>({ title, content, categoryId, subgroupId, status, synopsis, fields, timeline });
+  const draft = useRef<NoteDraft>({ title, content, categoryId, subgroupId, status, synopsis, fields, timeline, reference });
   // The content's word count as last saved, so each save adds only the difference to today's writing.
   const savedWords = useRef(countWords(content));
   // Set by Escape so the blur that follows discards the new category instead of creating it.
@@ -139,6 +158,7 @@ export default function NoteEditor(props: NoteEditorProps) {
       synopsis: current.synopsis,
       fields: current.fields,
       timeline: current.timeline,
+      reference: current.reference,
     };
 
     if (!noteId.current) {
@@ -205,6 +225,7 @@ export default function NoteEditor(props: NoteEditorProps) {
     setSynopsis(next.synopsis);
     setFields(next.fields);
     setTimeline(next.timeline);
+    setReference(next.reference);
     draft.current = next;
     dirty.current = true;
     edited.current = true;
@@ -293,12 +314,23 @@ export default function NoteEditor(props: NoteEditorProps) {
     }
   };
 
-  // [[ suggestions: the volume's notes whose title contains what's typed so far.
-  const suggestions = mention
-    ? allNotes
-        .filter(item => item.id !== noteId.current && item.title.trim() && titleKey(item.title).includes(titleKey(mention.query)))
-        .slice(0, 6)
-    : [];
+  // [[ suggestions: the volume's notes whose title contains what's typed so far; [@ suggestions: its sources, by title
+  // or by author.
+  const suggestions: NoteItem[] = !mention
+    ? []
+    : mention.kind === "citation"
+      ? allNotes
+          .filter(
+            (item): item is SourceNote =>
+              isSource(item) &&
+              item.id !== noteId.current &&
+              item.title.trim() !== "" &&
+              titleKey(`${item.title} ${item.reference.authors} ${item.reference.year}`).includes(titleKey(mention.query)),
+          )
+          .slice(0, 6)
+      : allNotes
+          .filter(item => item.id !== noteId.current && item.title.trim() && titleKey(item.title).includes(titleKey(mention.query)))
+          .slice(0, 6);
 
   // The text cut into pieces of text and the blocks gadgets put in it, tables and images, for those whose feature is
   // on (see blocks.ts); with none, it's one piece of text, edited exactly as before.
@@ -313,21 +345,30 @@ export default function NoteEditor(props: NoteEditorProps) {
 
   const trackMention = (textarea: HTMLTextAreaElement, part: number) => {
     lastCaret.current = { part, caret: textarea.selectionStart };
-    if (!on("mentions")) return;
-    const found = mentionAtCaret(textarea.value, textarea.selectionStart);
-    setMention(found ? { ...found, part, index: 0 } : null);
+    const citation = on("citations") ? citationAtCaret(textarea.value, textarea.selectionStart) : null;
+    if (citation) {
+      setMention({ ...citation, kind: "citation", part, index: 0 });
+      return;
+    }
+    const found = on("mentions") ? mentionAtCaret(textarea.value, textarea.selectionStart) : null;
+    setMention(found ? { ...found, kind: "mention", part, index: 0 } : null);
   };
 
-  // Completes the [[mention]] with the note's title and puts the caret after it.
+  // Completes the [[mention]] or [@citation] with the note's title and puts the caret after it (inside the citation's
+  // bracket, where a page can follow).
   const completeMention = (target: NoteItem) => {
     if (!mention) return;
     const textarea = textRefs.current.get(mention.part);
     const piece = parts[mention.part];
     if (!textarea || piece?.kind !== "text") return;
-    const after = piece.text.slice(textarea.selectionStart);
-    const closing = after.startsWith("]]") ? "" : "]]";
+    const citing = mention.kind === "citation";
+    // What's typed of the name after the caret goes too, up to where the mention or citation ends.
+    const rest = piece.text.slice(textarea.selectionStart);
+    const after = citing ? rest.replace(/^[^\];\n]*/, "") : rest;
+    const closingMark = citing ? "]" : "]]";
+    const closing = after.startsWith(closingMark) || (citing && after.startsWith(";")) ? "" : closingMark;
     const next = piece.text.slice(0, mention.start) + target.title.trim() + closing + after;
-    const caret = mention.start + target.title.trim().length + 2;
+    const caret = mention.start + target.title.trim().length + (citing ? 0 : 2);
     setPart(mention.part, { kind: "text", text: next });
     setMention(null);
     requestAnimationFrame(() => {
@@ -337,6 +378,8 @@ export default function NoteEditor(props: NoteEditorProps) {
   };
 
   const gadgets = GADGETS.filter(gadget => on(gadget.feature));
+  const inlineInserts = INLINE_INSERTS.filter(insert => on(insert.feature));
+  const menuItems: MenuItem[] = [...inlineInserts, ...gadgets];
 
   // Under the line at this point of a piece of text (where a gadget goes).
   const spotAt = (part: number, caret: number): Spot => {
@@ -346,6 +389,22 @@ export default function NoteEditor(props: NoteEditorProps) {
   };
 
   const endSpot = (): Spot => spotAt(parts.length - 1, Infinity);
+  const endCaret = (): Spot => {
+    const last = parts[parts.length - 1] as { text: string };
+    return { part: parts.length - 1, cut: last.text.length };
+  };
+
+  // Where exactly a right click landed in the text, for what's written in at the caret.
+  const caretFor = (target: HTMLElement, x: number, y: number): Spot => {
+    const block = target.closest<HTMLElement>("[data-part]");
+    if (!block) return endCaret();
+    const index = Number(block.dataset.part);
+    const part = parts[index];
+    if (part?.kind !== "text") return parts[index + 1]?.kind === "text" ? { part: index + 1, cut: 0 } : endCaret();
+    if (target instanceof HTMLTextAreaElement) return { part: index, cut: target.selectionStart };
+    const reading = target.closest<HTMLElement>(".note-editor__content--reading");
+    return { part: index, cut: reading ? caretAtPoint(reading, x, y, part.text.length) : part.text.length };
+  };
 
   // Where a right click landed: under that line of the text, right after that gadget, or else at the end.
   const spotFor = (target: HTMLElement, x: number, y: number): Spot => {
@@ -364,7 +423,7 @@ export default function NoteEditor(props: NoteEditorProps) {
   const openGadgetMenu = (event: React.MouseEvent) => {
     const touch = pointerType.current === "touch" || pointerType.current === "pen";
     pointerType.current = null;
-    if (!gadgets.length || event.shiftKey || touch) return;
+    if (!menuItems.length || event.shiftKey || touch) return;
     const target = event.target as HTMLElement;
     const selected =
       target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement
@@ -379,6 +438,7 @@ export default function NoteEditor(props: NoteEditorProps) {
       x: fromKeyboard ? rect.left : event.clientX,
       y: fromKeyboard ? rect.top + Math.min(rect.height, 32) : event.clientY,
       spot: spotFor(target, event.clientX, event.clientY),
+      caret: caretFor(target, event.clientX, event.clientY),
     });
   };
 
@@ -386,8 +446,9 @@ export default function NoteEditor(props: NoteEditorProps) {
   const openGadgetMenuFrom = (button: HTMLElement) => {
     const rect = button.getBoundingClientRect();
     const caret = lastCaret.current;
-    const spot = caret && parts[caret.part]?.kind === "text" ? spotAt(caret.part, caret.caret) : endSpot();
-    setGadgetMenu({ x: rect.left, y: rect.bottom + 4, spot });
+    const known = caret && parts[caret.part]?.kind === "text";
+    const spot = known ? spotAt(caret.part, caret.caret) : endSpot();
+    setGadgetMenu({ x: rect.left, y: rect.bottom + 4, spot, caret: known ? { part: caret.part, cut: caret.caret } : endCaret() });
   };
 
   // Loads the pictures the text shows that aren't loaded yet: on opening, and when undo or a version brings one back.
@@ -447,6 +508,49 @@ export default function NoteEditor(props: NoteEditorProps) {
     }
   };
 
+  // A citation or footnote written in at the caret, which then goes inside it (where [@ suggests the sources).
+  const insertInline = (insert: (typeof INLINE_INSERTS)[number], at: Spot) => {
+    setGadgetMenu(null);
+    const current = bodyParts(draft.current.content, blockKinds);
+    const index = current[at.part]?.kind === "text" ? at.part : current.length - 1;
+    const text = (current[index] as { text: string }).text;
+    const cut = index === at.part ? Math.min(at.cut, text.length) : text.length;
+    // Not stuck to the word before it.
+    const space = cut > 0 && !/\s/.test(text[cut - 1]!) && insert.id === "cite" ? " " : "";
+    const next = text.slice(0, cut) + space + insert.text + text.slice(cut);
+    flushSync(() =>
+      edit({ content: joinParts(current.map((part, i) => (i === index ? { kind: "text", text: next } : part))) }),
+    );
+    editContent(index, cut + space.length + insert.caret);
+    const textarea = textRefs.current.get(index);
+    if (textarea) trackMention(textarea, index);
+  };
+
+  const pickFromMenu = (id: string, menu: { spot: Spot; caret: Spot }) => {
+    const insert = INLINE_INSERTS.find(item => item.id === id);
+    if (insert) return insertInline(insert, menu.caret);
+    const gadget = gadgets.find(item => item.id === id);
+    if (gadget) insertGadget(gadget, menu.spot);
+  };
+
+  // A source keeps its reference on the note. Turning a note that kept it in fields ("Autor(es)", "Ano"…) into one
+  // takes those fields into the reference; both ways can be undone.
+  const toggleSource = () => {
+    const before = { reference: draft.current.reference, fields: draft.current.fields };
+    if (before.reference) {
+      edit({ reference: null });
+      notify("O verbete deixou de ser uma fonte.", { label: "Desfazer", run: () => edit(before) });
+      return;
+    }
+    const made = referenceFromFields(draft.current.fields, draft.current.title);
+    edit({ reference: made.reference, fields: made.rest });
+    const name = draft.current.title.trim();
+    notify(name ? `Agora é uma fonte: cite com [@${name}].` : "Agora é uma fonte. Dê um título para citá-la.", {
+      label: "Desfazer",
+      run: () => edit(before),
+    });
+  };
+
   const changeTable = (index: number, rows: Sheet, undo?: string) => {
     const before = draft.current.content;
     setPart(index, { kind: "table", rows });
@@ -473,7 +577,15 @@ export default function NoteEditor(props: NoteEditorProps) {
   });
 
   const byTitle = notesByTitle(allNotes);
-  const mentions = on("mentions") ? mentionedNotes(content, byTitle).filter(item => item.id !== noteId.current) : [];
+  const sources = sourcesByTitle(allNotes);
+  const inlineKinds = { mentions: on("mentions"), citations: on("citations"), footnotes: on("footnotes") };
+  // What this note mentions, and the sources it cites.
+  const mentions = [
+    ...new Set([
+      ...(on("mentions") ? mentionedNotes(content, byTitle) : []),
+      ...(on("citations") ? citedSources(content, sources) : []),
+    ]),
+  ].filter(item => item.id !== noteId.current);
   // Switches a piece of the text to its textarea within the click or key press, so phones still open the keyboard.
   const editContent = (part = 0, caret?: number, scrollTop?: number) => {
     flushSync(() => setEditingPart(part));
@@ -484,7 +596,14 @@ export default function NoteEditor(props: NoteEditorProps) {
     textarea.focus({ preventScroll: true });
     textarea.setSelectionRange(at, at);
   };
-  const mentionedIn = on("mentions") && title.trim() ? backlinks({ id: noteId.current ?? "", title }, allNotes) : [];
+  // A source shows where it's cited too, mentions or not.
+  const citedHere = on("citations") && reference !== null;
+  const self = { id: noteId.current ?? "", title };
+  const mentionedIn = on("mentions")
+    ? backlinks(self, allNotes, citedHere ? citesTitle : undefined)
+    : citedHere && titleKey(title)
+      ? allNotes.filter(other => other.id !== self.id && citesTitle(other.content, titleKey(title)))
+      : [];
 
   const statusText = error || (saveState === "pending" ? "Arquivando..." : "Arquivado");
   const wordsText = formatWords(countWords(content));
@@ -522,7 +641,12 @@ export default function NoteEditor(props: NoteEditorProps) {
           </span>
           <span className="note-pane__name">{title.trim() || "Sem título"}</span>
         </div>
-        {gadgets.length > 0 && (
+        {on("citations") && (
+          <button type="button" className="note-pane__tool" aria-pressed={reference !== null} onClick={toggleSource}>
+            Fonte
+          </button>
+        )}
+        {menuItems.length > 0 && (
           <button
             type="button"
             className="note-pane__tool note-pane__insert"
@@ -656,6 +780,9 @@ export default function NoteEditor(props: NoteEditorProps) {
             />
           </label>
         )}
+        {on("citations") && reference && (
+          <ReferenceForm reference={reference} onChange={next => edit({ reference: next })} onRemove={toggleSource} />
+        )}
         {on("fields") && (
           <NoteFields fields={fields} onChange={next => edit({ fields: next })} />
         )}
@@ -701,16 +828,21 @@ export default function NoteEditor(props: NoteEditorProps) {
               );
             }
 
-            const reading = on("mentions") && editingPart !== index && part.text.trim() !== "";
+            const reading =
+              (inlineKinds.mentions || inlineKinds.citations || inlineKinds.footnotes) &&
+              editingPart !== index &&
+              part.text.trim() !== "";
             // The hint only goes in the first piece of text.
-            const placeholder =
-              index > 0 ? undefined : on("mentions") ? "Escreva o verbete... Use [[ para citar outro verbete." : "Escreva o verbete...";
+            const hints = [on("mentions") && "[[ menciona outro verbete", on("citations") && "[@ cita uma fonte"].filter(Boolean);
+            const placeholder = index > 0 ? undefined : hints.length ? `Escreva o verbete... Use ${hints.join(", ")}.` : "Escreva o verbete...";
             return (
               <div key={index} className="note-editor__part" data-part={index}>
                 {reading ? (
                   <MentionText
                     content={part.text}
                     byTitle={byTitle}
+                    sources={sources}
+                    kinds={inlineKinds}
                     noteId={noteId.current}
                     onOpenNote={props.onOpenNote}
                     onEdit={(caret, scrollTop) => editContent(index, caret, scrollTop)}
@@ -752,7 +884,11 @@ export default function NoteEditor(props: NoteEditorProps) {
                   />
                 )}
                 {mention?.part === index && suggestions.length > 0 && (
-                  <ul className="mention-suggest" role="listbox" aria-label="Verbetes para citar">
+                  <ul
+                    className="mention-suggest"
+                    role="listbox"
+                    aria-label={mention.kind === "citation" ? "Fontes para citar" : "Verbetes para mencionar"}
+                  >
                     {suggestions.map((item, itemIndex) => (
                       <li key={item.id} role="option" aria-selected={itemIndex === mention.index}>
                         <button
@@ -763,6 +899,9 @@ export default function NoteEditor(props: NoteEditorProps) {
                           }}
                         >
                           {item.title.trim()}
+                          {mention.kind === "citation" && item.reference && (
+                            <span className="mention-suggest__detail">{citationText(item.reference)}</span>
+                          )}
                         </button>
                       </li>
                     ))}
@@ -789,7 +928,7 @@ export default function NoteEditor(props: NoteEditorProps) {
             )}
             {mentionedIn.length > 0 && (
               <p>
-                <span className="note-links__label">Mencionado em</span>
+                <span className="note-links__label">{citedHere ? "Citado ou mencionado em" : "Mencionado em"}</span>
                 {mentionedIn.map(item => (
                   <button key={item.id} type="button" className="note-links__link" onClick={() => props.onOpenNote(item)}>
                     {item.title.trim() || "Sem título"}
@@ -814,8 +953,8 @@ export default function NoteEditor(props: NoteEditorProps) {
         <GadgetMenu
           x={gadgetMenu.x}
           y={gadgetMenu.y}
-          gadgets={gadgets}
-          onPick={gadget => insertGadget(gadget, gadgetMenu.spot)}
+          items={menuItems}
+          onPick={id => pickFromMenu(id, gadgetMenu)}
           onClose={() => setGadgetMenu(null)}
         />
       )}

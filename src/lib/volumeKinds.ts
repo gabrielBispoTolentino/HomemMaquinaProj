@@ -1,4 +1,5 @@
 import type { FeatureId } from "./features";
+import type { Reference, SourceType } from "./references";
 
 // The models a new volume can start from. Each one switches on the features that kind of work needs, and fills
 // the volume with a starting structure: categories, subgroups and a few notes to write over.
@@ -12,11 +13,15 @@ export type NoteTemplate = {
   content?: string;
   // Notes from this template made with the general "+ Verbete" go in the top-level subgroup with this name.
   subgroup?: string;
+  // A source: with citations on, the note starts with an empty reference of this type instead of the fields.
+  reference?: SourceType;
 };
 
 type SeedNote = {
   kind: "note";
   title: string;
+  // Filled into the template's reference, for an example source.
+  reference?: Partial<Omit<Reference, "type">>;
   content?: string;
   synopsis?: string;
   timeline?: string;
@@ -51,7 +56,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Romance ou conto: capítulos e cenas em ordem, personagens, manuscrito e metas de escrita.",
     icon: "📖",
     accent: "#f5a7a1",
-    features: ["status", "goals", "manuscript", "corkboard", "versions", "fields", "templates", "mentions", "images"],
+    features: ["status", "goals", "manuscript", "corkboard", "versions", "footnotes", "fields", "templates", "mentions", "images"],
     categories: ["Personagem", "Lugar", "Cena"],
     templates: [
       {
@@ -90,7 +95,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Um mundo para explorar: personagens, lugares, facções, história e as relações entre eles.",
     icon: "🗺",
     accent: "#a8d5c2",
-    features: ["corkboard", "fields", "templates", "mentions", "timeline", "graph", "names", "versions", "tables", "images"],
+    features: ["corkboard", "footnotes", "fields", "templates", "mentions", "timeline", "graph", "names", "versions", "tables", "images"],
     categories: ["Personagem", "Lugar", "Facção", "Evento"],
     templates: [
       {
@@ -139,7 +144,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
     description: "Artigo, tese ou revisão: seções do texto, fontes, conceitos e controle de versões.",
     icon: "🎓",
     accent: "#a9c7e8",
-    features: ["status", "goals", "manuscript", "versions", "fields", "templates", "mentions", "tables", "images"],
+    features: ["status", "goals", "manuscript", "versions", "footnotes", "fields", "templates", "mentions", "citations", "tables", "images"],
     categories: ["Fonte", "Conceito", "Método", "Resultado"],
     templates: [
       {
@@ -147,6 +152,7 @@ export const VOLUME_KINDS: VolumeKind[] = [
         label: "Fonte",
         category: "Fonte",
         fields: ["Autor(es)", "Ano", "Título", "Publicação", "DOI ou URL"],
+        reference: "livro",
         content: "Resumo:\n\nCitações relevantes:\n\nComo usar no texto:\n",
         subgroup: "Fontes",
       },
@@ -168,13 +174,29 @@ export const VOLUME_KINDS: VolumeKind[] = [
     ],
     structure: [
       group("Artigo", [
-        note("Introdução", { template: "secao" }),
+        note("Introdução", {
+          template: "secao",
+          content:
+            "Argumento principal:\n\nCite uma fonte com [@Eco 2016, p. 45], que vira (ECO, 2016, p. 45) no manuscrito.[nota]As notas de rodapé são numeradas e vão para o fim do texto.[/nota]\n",
+        }),
         note("Métodos", { template: "secao" }),
         note("Resultados", { template: "secao" }),
         note("Discussão", { template: "secao" }),
         note("Conclusão", { template: "secao" }),
       ]),
-      group("Fontes"),
+      group("Fontes", [
+        note("Eco 2016", {
+          template: "fonte",
+          reference: {
+            authors: "Eco, Umberto",
+            title: "Como se faz uma tese",
+            edition: "26",
+            place: "São Paulo",
+            publisher: "Perspectiva",
+            year: "2016",
+          },
+        }),
+      ]),
       group("Conceitos"),
     ],
   },

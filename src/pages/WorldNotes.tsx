@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { categoryColor, createCategory, findCategoryByName, loadCategories, type CategoryItem } from "../lib/categories";
 import { featureOn, type FeatureId } from "../lib/features";
-import { loadNotes, moveNote, restoreNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import { draftOf, loadNotes, moveNote, restoreNote, updateNote, type NoteDraft, type NoteItem } from "../lib/notes";
+import { emptyReference, referenceFromFields, referenceText } from "../lib/references";
 import { childrenOf, endPosition, placeAmong, type Placement } from "../lib/order";
 import {
   createSubgroup,
@@ -37,6 +38,7 @@ import ManuscriptView from "./ManuscriptView.tsx";
 import NameCheck from "./NameCheck.tsx";
 import NoteEditor from "./NoteEditor.tsx";
 import NoteTree from "./NoteTree.tsx";
+import ReferencesView from "./ReferencesView.tsx";
 import RelationshipMap from "./RelationshipMap.tsx";
 import TimelineView from "./TimelineView.tsx";
 import TrashView from "./TrashView.tsx";
@@ -53,7 +55,7 @@ import { confirmAction, isDialogOpen, notify } from "./Dialogs.tsx";
 type View =
   | { kind: "note"; id: string | null; subgroupId: string | null; preset?: Partial<NoteDraft>; key: number }
   | { kind: "manuscript" | "board"; subgroupId: string | null; key: number }
-  | { kind: "settings" | "timeline" | "graph" | "names" | "table" | "trash" | "help"; key: number };
+  | { kind: "settings" | "timeline" | "graph" | "names" | "references" | "table" | "trash" | "help"; key: number };
 
 // What's remembered of the open view between visits to a volume (see LAST_VIEW_KEY).
 type SavedView = { kind: View["kind"]; id?: string | null; subgroupId?: string | null };
@@ -65,6 +67,7 @@ const VOLUME_VIEWS = [
   { kind: "timeline", feature: "timeline", label: "Linha do tempo" },
   { kind: "graph", feature: "graph", label: "Mapa" },
   { kind: "names", feature: "names", label: "Nomes" },
+  { kind: "references", feature: "citations", label: "Referências" },
   { kind: "table", feature: "gmtools", label: "Mesa" },
 ] as const;
 
@@ -177,8 +180,9 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
     if (categoryId && note.category_id !== categoryId) return false;
     if (on("status") && statusFilter && (note.status ?? "none") !== statusFilter) return false;
     const fieldText = note.fields.map(field => `${field.key} ${field.value}`).join(" ");
+    const sourceText = on("citations") && note.reference ? referenceText(note.reference) : "";
     const text = normalize(
-      `${note.title} ${note.content} ${note.synopsis} ${fieldText} ${note.timeline} ${categoryName(note.category_id)} ${subgroupPath(note.subgroup_id)}`,
+      `${note.title} ${note.content} ${note.synopsis} ${fieldText} ${sourceText} ${note.timeline} ${categoryName(note.category_id)} ${subgroupPath(note.subgroup_id)}`,
     );
     return terms.every(term => text.includes(term));
   });
@@ -503,11 +507,15 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
         kind: "note",
         id: null,
         subgroupId: subgroup?.id ?? null,
-        preset: {
-          content: template.content ?? "",
-          categoryId: category?.id ?? null,
-          fields: (template.fields ?? []).map(key => ({ key, value: "" })),
-        },
+        // With citations on, a source template starts a reference instead of the fields that used to hold it.
+        preset:
+          template.reference && on("citations")
+            ? { content: template.content ?? "", categoryId: category?.id ?? null, fields: [], reference: emptyReference(template.reference) }
+            : {
+                content: template.content ?? "",
+                categoryId: category?.id ?? null,
+                fields: (template.fields ?? []).map(key => ({ key, value: "" })),
+              },
         key: ++viewCount,
       });
     } catch (err) {
@@ -516,6 +524,53 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   };
 
   const templateGroups = on("templates") ? templatesFor(world.kind) : [];
+
+  // "+ Fonte" in Referências: the model's source template when it has one, or else a blank source, filed under a
+  // "Fonte" category and a "Fontes" subgroup when the volume has them.
+  const newSource = () => {
+    const template = templatesFor(world.kind)
+      .flatMap(group => group.templates)
+      .find(item => item.reference);
+    if (template) {
+      openFromTemplate(template);
+      return;
+    }
+    const subgroup = findSubgroupByName(subgroups, "Fontes", null);
+    expandTo(subgroup?.id ?? null);
+    show({
+      kind: "note",
+      id: null,
+      subgroupId: subgroup?.id ?? null,
+      preset: { categoryId: findCategoryByName(categories, "Fonte")?.id ?? null, reference: emptyReference() },
+      key: ++viewCount,
+    });
+  };
+
+  // Notes that kept a source in custom fields, turned into sources: the fields become the reference. Undone by
+  // putting the notes back as they were.
+  const makeSources = async (targets: NoteItem[]) => {
+    const save = async (changed: NoteItem[]) => {
+      const saved = await Promise.all(
+        changed.map(async note => ({ ...note, updated_at: await updateNote(note.id, world.id, draftOf(note), 0) })),
+      );
+      const byId = new Map(saved.map(note => [note.id, note]));
+      setNotes(current => current.map(note => (byId.has(note.id) ? { ...byId.get(note.id)!, position: note.position } : note)));
+    };
+    try {
+      await save(
+        targets.map(note => {
+          const made = referenceFromFields(note.fields, note.title);
+          return { ...note, reference: made.reference, fields: made.rest };
+        }),
+      );
+      notify(targets.length === 1 ? "O verbete virou uma fonte." : `${targets.length} verbetes viraram fontes.`, {
+        label: "Desfazer",
+        run: () => save(targets).catch(err => setTreeError(err instanceof Error ? err.message : "Erro ao desfazer.")),
+      });
+    } catch (err) {
+      setTreeError(err instanceof Error ? err.message : "Erro ao transformar em fontes.");
+    }
+  };
 
   const startSubgroupIn = (parentId: string | null) => {
     expandTo(parentId);
@@ -1069,9 +1124,23 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
         ) : view.kind === "timeline" ? (
           <TimelineView notes={notes} categories={categories} headStart={showSidebarButton} onOpenNote={openExisting} />
         ) : view.kind === "graph" ? (
-          <RelationshipMap notes={notes} categories={categories} headStart={showSidebarButton} onOpenNote={openExisting} />
+          <RelationshipMap
+            notes={notes}
+            categories={categories}
+            citations={on("citations")}
+            headStart={showSidebarButton}
+            onOpenNote={openExisting}
+          />
         ) : view.kind === "names" ? (
           <NameCheck notes={notes} headStart={showSidebarButton} onOpenNote={openExisting} />
+        ) : view.kind === "references" ? (
+          <ReferencesView
+            notes={notes}
+            headStart={showSidebarButton}
+            onOpenNote={openExisting}
+            onNewSource={newSource}
+            onMakeSources={makeSources}
+          />
         ) : (
           <GameTable
             worldId={world.id}

@@ -1,5 +1,6 @@
 import { newId, now, queryAll, run, runBatch, type Statement } from "./db";
 import { parseFeatures, serializeFeatures, type FeatureId } from "./features";
+import { emptyReference, serializeReference } from "./references";
 import { importFromSupabase } from "./supabaseImport";
 import { volumeKind, type SeedItem, type VolumeKind } from "./volumeKinds";
 
@@ -54,11 +55,14 @@ function seedStatements(worldId: string, kind: VolumeKind): Statement[] {
 
       const template = item.template ? kind.templates.find(entry => entry.id === item.template) : undefined;
       const category = item.category ?? template?.category;
-      const fields = (template?.fields ?? []).map(key => ({ key, value: "" }));
+      // With citations on, a source template starts a reference instead of the fields that used to hold it.
+      const referenceType = kind.features.includes("citations") ? template?.reference : undefined;
+      const reference = referenceType ? { ...emptyReference(referenceType), ...item.reference } : null;
+      const fields = reference ? [] : (template?.fields ?? []).map(key => ({ key, value: "" }));
       statements.push({
         sql: `INSERT INTO notes (id, world_id, title, content, category_id, subgroup_id, position, synopsis, fields,
-                timeline, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                timeline, reference, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           newId(),
           worldId,
@@ -70,6 +74,7 @@ function seedStatements(worldId: string, kind: VolumeKind): Statement[] {
           item.synopsis ?? "",
           JSON.stringify(fields),
           item.timeline ?? "",
+          serializeReference(reference),
           stamp(0),
           stamp(0),
         ],

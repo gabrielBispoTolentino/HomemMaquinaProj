@@ -1553,3 +1553,189 @@ body.is-dragging * {
     transition: none;
   }
 }
+
+/* [@Fonte] while reading: as it will be cited, like a library stamp in the margin. */
+.citation {
+  border-radius: 4px;
+  padding: 0 0.15em;
+  background: color-mix(in srgb, var(--world, #a9c7e8) 35%, transparent);
+  cursor: pointer;
+}
+
+.citation:hover,
+.citation:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--world, #a9c7e8) 60%, transparent);
+}
+
+/* No source has this title (yet): shown as typed. */
+.citation--missing {
+  background: transparent;
+  color: var(--binder-muted);
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+  cursor: text;
+}
+
+.citation--missing:hover {
+  background: transparent;
+}
+
+/* A [nota]: its number raised, and its text in small type, as at the foot of a page. */
+.footnote-mark {
+  margin: 0 0.1em;
+  font-family: var(--binder-display);
+  font-weight: 700;
+  color: var(--binder-muted);
+}
+
+.footnote-text {
+  font-size: 0.82em;
+  color: var(--binder-muted);
+}
+
+.mention-suggest__detail {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--binder-on-slate-muted);
+}
+
+.mention-suggest li[aria-selected="true"] .mention-suggest__detail,
+.mention-suggest button:hover .mention-suggest__detail {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* A source's reference, like a library catalogue card above the text. */
+.reference-card {
+  flex: none;
+  margin: 0 0 1rem;
+  border: 1px solid #c9d3da;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem 0.7rem;
+  background: var(--binder-paper-shade);
+}
+
+.reference-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.reference-card__label {
+  font-family: var(--binder-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--binder-muted);
+}
+
+.reference-card__type {
+  min-height: 2.2rem;
+  border: 1px solid #c9d3da;
+  border-radius: 7px;
+  padding: 0.2rem 0.4rem;
+  background: var(--binder-paper);
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 1rem;
+}
+
+.reference-card__remove {
+  margin-left: auto;
+  min-height: 2.2rem;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.2rem 0.5rem;
+  background: transparent;
+  color: var(--binder-muted);
+  font-family: var(--binder-display);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.reference-card__remove:hover {
+  color: #a3322a;
+}
+
+.reference-card__fields {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0 0.8rem;
+}
+
+.reference-card__field {
+  grid-column: span 6;
+  display: grid;
+  grid-template-columns: minmax(6rem, 25%) 1fr;
+  align-items: center;
+  gap: 0.6rem;
+  border-bottom: 1px solid #c9d3da;
+}
+
+.reference-card__field--short {
+  grid-column: span 2;
+  grid-template-columns: auto 1fr;
+}
+
+.reference-card__field span {
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--binder-muted);
+}
+
+.reference-card__field input {
+  min-width: 0;
+  min-height: 2.2rem;
+  border: 0;
+  padding: 0.3rem 0;
+  background: transparent;
+  color: var(--binder-ink);
+  font-family: var(--binder-text);
+  font-size: 0.98rem;
+}
+
+.reference-card__field input:focus {
+  outline: none;
+  background: var(--binder-paper);
+}
+
+.reference-card__field input::placeholder {
+  color: #93a1ac;
+}
+
+.reference-card__preview {
+  margin: 0.6rem 0 0;
+  font-family: var(--binder-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.reference-card__preview-label {
+  display: block;
+  font-family: var(--binder-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--binder-muted);
+}
+
+/* Phones: one field per row, and room for a finger. */
+@media (max-width: 600px) {
+  .reference-card__field,
+  .reference-card__field--short {
+    grid-column: span 6;
+    grid-template-columns: minmax(5.5rem, 35%) 1fr;
+  }
+
+  .reference-card__field input,
+  .reference-card__type,
+  .reference-card__remove {
+    min-height: 44px;
+  }
+}

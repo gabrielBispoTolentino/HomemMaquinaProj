@@ -16,6 +16,9 @@ const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator
 // volume has on, and points to Recursos for the rest, so it never describes buttons the user can't see.
 export default function HelpView({ features, headStart, onOpenSettings }: HelpViewProps) {
   const on = (id: FeatureId) => featureOn(features, id);
+  // What the note's right-click menu offers: a citation or a footnote where it was clicked, and gadgets under that line.
+  const atCaret = [on("citations") && "citar fonte", on("footnotes") && "nota de rodapé"].filter(Boolean);
+  const gadgets = GADGETS.filter(gadget => on(gadget.feature)).map(gadget => gadget.label.toLowerCase());
 
   return (
     <article className="world-view">
@@ -63,6 +66,22 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
             {on("status") && <li>Marque o andamento de cada verbete: Ideia, Rascunho, Revisão ou Final.</li>}
             {on("fields") && <li>Use “+ Campo” para guardar dados curtos, como Idade, Região, Autor ou Ano.</li>}
             {on("templates") && <li>“+ Verbete” oferece modelos com categoria, campos e texto já prontos.</li>}
+            {on("citations") && (
+              <li>
+                Uma <strong>fonte</strong> é um verbete com referência: toque em “Fonte”, no alto do verbete, e preencha
+                autores, título, ano e o resto. Para citá-la, escreva <code>[@</code> e o começo do título ou do autor;
+                acrescente a página depois de uma vírgula, como <code>[@Eco 2016, p. 45]</code>, ou cite várias com{" "}
+                <code>;</code>. No manuscrito, a citação sai no padrão ABNT, como (ECO, 2016, p. 45), e as fontes citadas
+                vão para as Referências no fim.
+              </li>
+            )}
+            {on("footnotes") && (
+              <li>
+                Escreva uma <strong>nota de rodapé</strong> entre <code>[nota]</code> e <code>[/nota]</code>, logo depois
+                da palavra a que ela se refere. No verbete ela aparece em letra pequena; no manuscrito vira um número, e o
+                texto das notas vai para o fim.
+              </li>
+            )}
             {on("secrets") && (
               <li>
                 Escreva entre <code>[segredo]</code> e <code>[/segredo]</code> o que os jogadores não devem ver. Esses
@@ -70,13 +89,13 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
               </li>
             )}
             {on("versions") && <li>Em “Versões”, guarde uma cópia do texto, compare com o atual e volte a ela.</li>}
-            {GADGETS.some(gadget => on(gadget.feature)) && (
+            {(gadgets.length > 0 || atCaret.length > 0) && (
               <li>
-                Clique com o <strong>botão direito</strong> no verbete para inserir algo abaixo daquela linha (
-                {GADGETS.filter(gadget => on(gadget.feature))
-                  .map(gadget => gadget.label.toLowerCase())
-                  .join(", ")}
-                ). No celular, toque em “+ Inserir”, no alto do verbete. Com texto selecionado, ou segurando Shift, o
+                Clique com o <strong>botão direito</strong> no verbete para inserir algo
+                {atCaret.length > 0 && ` no ponto clicado (${atCaret.join(", ")})`}
+                {atCaret.length > 0 && gadgets.length > 0 && " ou"}
+                {gadgets.length > 0 && ` abaixo daquela linha (${gadgets.join(", ")})`}. No celular, toque em “+ Inserir”,
+                no alto do verbete. Com texto selecionado, ou segurando Shift, o
                 botão direito abre o menu de sempre, para copiar e colar.
               </li>
             )}
@@ -106,9 +125,15 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
             </li>
             <li>O botão ⋯ de um subgrupo cria, renomeia, move e exclui. Excluir um subgrupo nunca apaga o que está nele.</li>
             <li>
-              A <strong>busca</strong> procura no título, no texto, nos campos, na categoria e no subgrupo, sem ligar
-              para acentos.
+              A <strong>busca</strong> procura no título, no texto, nos campos
+              {on("citations") && ", na referência das fontes"}, na categoria e no subgrupo, sem ligar para acentos.
             </li>
+            {on("citations") && (
+              <li>
+                Em <strong>Referências</strong> ficam todas as fontes do volume, onde cada uma é citada, as que ainda não
+                foram citadas e as citações que não acham fonte. “Copiar lista” copia as referências prontas.
+              </li>
+            )}
           </ul>
         </section>
 

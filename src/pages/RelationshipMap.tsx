@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { categoryColor, type CategoryItem } from "../lib/categories";
 import { layoutGraph } from "../lib/graphLayout";
+import { citedSources, sourcesByTitle } from "../lib/citations";
 import { mentionLinks } from "../lib/mentions";
 import type { NoteItem } from "../lib/notes";
 import "./CSS/Worldbuilding.css";
@@ -8,6 +9,8 @@ import "./CSS/Worldbuilding.css";
 type RelationshipMapProps = {
   notes: NoteItem[];
   categories: CategoryItem[];
+  // Citing a source counts as mentioning it (with the "citations" feature).
+  citations: boolean;
   headStart?: ReactNode;
   onOpenNote: (note: NoteItem) => void;
 };
@@ -18,9 +21,10 @@ const MARGIN = 70;
 
 // Which notes mention which: every note in a mention is a dot in its category's color, and a line joins each
 // pair. Notes nobody mentions and that mention no one are left out.
-export default function RelationshipMap({ notes, categories, headStart, onOpenNote }: RelationshipMapProps) {
+export default function RelationshipMap({ notes, categories, citations, headStart, onOpenNote }: RelationshipMapProps) {
   const { nodes, edges } = useMemo(() => {
-    const links = mentionLinks(notes);
+    const sources = sourcesByTitle(notes);
+    const links = mentionLinks(notes, citations ? text => citedSources(text, sources) : undefined);
     const pairs = new Map<string, [string, string]>();
     for (const { from, to } of links) {
       const key = [from.id, to.id].sort().join("|");
@@ -44,7 +48,7 @@ export default function RelationshipMap({ notes, categories, headStart, onOpenNo
       ]),
     );
     return { nodes: fitted, edges: [...pairs.values()] };
-  }, [notes]);
+  }, [citations, notes]);
 
   const noteById = new Map(notes.map(note => [note.id, note]));
 

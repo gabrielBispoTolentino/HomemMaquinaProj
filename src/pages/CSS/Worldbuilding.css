@@ -852,3 +852,64 @@
     margin-bottom: 0.5rem;
   }
 }
+
+/* Referências: the volume's sources, as ABNT lists them. */
+.references__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.references {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.references__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.6rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.references__line {
+  flex-basis: 100%;
+  margin: 0;
+  font-family: var(--binder-text);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.references__warning {
+  flex-basis: 100%;
+  font-size: 0.9rem;
+  color: #f3d38b;
+}
+
+.references__convert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 1.5rem;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.references__convert p {
+  flex-basis: 100%;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (pointer: coarse) {
+  .references .names__note,
+  .references__convert .names__note {
+    min-height: 44px;
+  }
+}

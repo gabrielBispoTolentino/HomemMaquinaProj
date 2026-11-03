@@ -4,6 +4,7 @@
 export const FEATURE_GROUPS = [
   { id: "escrita", label: "Escrita" },
   { id: "mundo", label: "Mundo e referências" },
+  { id: "pesquisa", label: "Pesquisa" },
   { id: "rpg", label: "RPG" },
 ] as const;
 
@@ -43,6 +44,12 @@ export const FEATURES = [
     group: "escrita",
     label: "Tabelas",
     description: "Tabelas como as de uma planilha dentro do verbete, com fórmulas como =SOMA(B2:B5).",
+  },
+  {
+    id: "footnotes",
+    group: "escrita",
+    label: "Notas de rodapé",
+    description: "Notas entre [nota] e [/nota], numeradas no manuscrito e reunidas no fim.",
   },
   {
     id: "fields",
@@ -85,6 +92,12 @@ export const FEATURES = [
     group: "mundo",
     label: "Verificação de nomes",
     description: "Aponta nomes quase iguais aos dos verbetes, como “Auorra” e “Aurora”.",
+  },
+  {
+    id: "citations",
+    group: "pesquisa",
+    label: "Citações e referências",
+    description: "Verbetes como fontes, citadas com [@Título] no padrão ABNT, e a lista de referências no manuscrito.",
   },
   {
     id: "secrets",

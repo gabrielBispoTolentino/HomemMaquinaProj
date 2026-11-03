@@ -1,5 +1,6 @@
 import { newId, now, queryAll, run, runBatch } from "./db";
 import { endPosition, respacedStatements, type Placement } from "./order";
+import { parseReference, serializeReference, type Reference } from "./references";
 import { countWords, recordWordsStatement } from "./writing";
 
 // A custom field: "Idade" → "32".
@@ -16,6 +17,8 @@ export type NoteItem = {
   synopsis: string;
   fields: NoteField[];
   timeline: string;
+  // Its bibliographic reference when the note is a source (the "citations" feature); null otherwise.
+  reference: Reference | null;
   created_at: string;
   updated_at: string;
 };
@@ -29,6 +32,7 @@ export type NoteDraft = {
   synopsis: string;
   fields: NoteField[];
   timeline: string;
+  reference: Reference | null;
 };
 
 function parseFields(stored: string): NoteField[] {
@@ -40,14 +44,33 @@ function parseFields(stored: string): NoteField[] {
   }
 }
 
+type NoteRow = Omit<NoteItem, "fields" | "reference"> & { fields: string; reference: string | null };
+
+const NOTE_COLUMNS = `id, title, content, category_id, subgroup_id, position, status, synopsis, fields, timeline, reference,
+  created_at, updated_at`;
+
+function noteFromRow(row: NoteRow): NoteItem {
+  return { ...row, fields: parseFields(row.fields), reference: parseReference(row.reference) };
+}
+
+// The note as the editor saves it.
+export function draftOf(note: NoteItem): NoteDraft {
+  return {
+    title: note.title,
+    content: note.content,
+    categoryId: note.category_id,
+    subgroupId: note.subgroup_id,
+    status: note.status,
+    synopsis: note.synopsis,
+    fields: note.fields,
+    timeline: note.timeline,
+    reference: note.reference,
+  };
+}
+
 export async function loadNotes(worldId: string): Promise<NoteItem[]> {
-  const rows = await queryAll<Omit<NoteItem, "fields"> & { fields: string }>(
-    `SELECT id, title, content, category_id, subgroup_id, position, status, synopsis, fields, timeline, created_at,
-       updated_at
-     FROM notes WHERE world_id = ? AND deleted_at IS NULL`,
-    [worldId],
-  );
-  return rows.map(row => ({ ...row, fields: parseFields(row.fields) }));
+  const rows = await queryAll<NoteRow>(`SELECT ${NOTE_COLUMNS} FROM notes WHERE world_id = ? AND deleted_at IS NULL`, [worldId]);
+  return rows.map(noteFromRow);
 }
 
 // A note in the volume's Lixeira, newest first.
@@ -67,8 +90,8 @@ export async function createNote(worldId: string, draft: NoteDraft, position: nu
   await runBatch([
     {
       sql: `INSERT INTO notes (id, world_id, title, content, category_id, subgroup_id, position, status, synopsis,
-              fields, timeline, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              fields, timeline, reference, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [
         id,
         worldId,
@@ -81,6 +104,7 @@ export async function createNote(worldId: string, draft: NoteDraft, position: nu
         draft.synopsis,
         JSON.stringify(draft.fields),
         draft.timeline,
+        serializeReference(draft.reference),
         timestamp,
         timestamp,
       ],
@@ -96,7 +120,7 @@ export async function updateNote(id: string, worldId: string, draft: NoteDraft, 
   await runBatch([
     {
       sql: `UPDATE notes SET title = ?, content = ?, category_id = ?, subgroup_id = ?, status = ?, synopsis = ?,
-              fields = ?, timeline = ?, updated_at = ?
+              fields = ?, timeline = ?, reference = ?, updated_at = ?
             WHERE id = ?`,
       params: [
         draft.title,
@@ -107,6 +131,7 @@ export async function updateNote(id: string, worldId: string, draft: NoteDraft, 
         draft.synopsis,
         JSON.stringify(draft.fields),
         draft.timeline,
+        serializeReference(draft.reference),
         timestamp,
         id,
       ],
@@ -133,13 +158,8 @@ export async function trashNote(id: string) {
 // already cleared subgroup_id then). Resolves to the note as the listing shows it.
 export async function restoreNote(id: string): Promise<NoteItem | null> {
   await run("UPDATE notes SET deleted_at = NULL, position = ? WHERE id = ?", [endPosition(), id]);
-  const rows = await queryAll<Omit<NoteItem, "fields"> & { fields: string }>(
-    `SELECT id, title, content, category_id, subgroup_id, position, status, synopsis, fields, timeline, created_at,
-       updated_at
-     FROM notes WHERE id = ?`,
-    [id],
-  );
-  return rows[0] ? { ...rows[0], fields: parseFields(rows[0].fields) } : null;
+  const rows = await queryAll<NoteRow>(`SELECT ${NOTE_COLUMNS} FROM notes WHERE id = ?`, [id]);
+  return rows[0] ? noteFromRow(rows[0]) : null;
 }
 
 // For good, with its versions.

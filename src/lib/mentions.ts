@@ -33,37 +33,29 @@ export function mentionedNotes(text: string, byTitle: Map<string, NoteItem>) {
   return found;
 }
 
-// The text cut into plain runs and [[mentions]], each with where it starts in the text, for showing mentions as links.
-export function mentionSegments(text: string) {
-  const segments: { start: number; text: string; name?: string }[] = [];
-  let last = 0;
-  for (const match of text.matchAll(MENTION)) {
-    if (match.index > last) segments.push({ start: last, text: text.slice(last, match.index) });
-    segments.push({ start: match.index, text: match[0], name: match[1]! });
-    last = match.index + match[0].length;
-  }
-  if (last < text.length) segments.push({ start: last, text: text.slice(last) });
-  return segments;
-}
-
-// Every mention between notes in the volume, as from → to pairs (each pair once, no self-mentions).
-export function mentionLinks(notes: NoteItem[]) {
+// Every mention between notes in the volume, as from → to pairs (each pair once, no self-mentions). With
+// `cited`, a text's citations of sources (citations.ts) count as mentions of them too.
+export function mentionLinks(notes: NoteItem[], cited?: (text: string) => NoteItem[]) {
   const byTitle = notesByTitle(notes);
   const links: { from: NoteItem; to: NoteItem }[] = [];
   for (const note of notes) {
-    for (const target of mentionedNotes(note.content, byTitle)) {
+    const targets = mentionedNotes(note.content, byTitle);
+    for (const source of cited?.(note.content) ?? []) if (!targets.includes(source)) targets.push(source);
+    for (const target of targets) {
       if (target.id !== note.id) links.push({ from: note, to: target });
     }
   }
   return links;
 }
 
-// The notes whose text mentions this one.
-export function backlinks(note: { id: string; title: string }, notes: NoteItem[]) {
+// The notes whose text mentions this one (or, with `cites`, cites it).
+export function backlinks(note: { id: string; title: string }, notes: NoteItem[], cites?: (text: string, key: string) => boolean) {
   const key = titleKey(note.title);
   if (!key) return [];
   return notes.filter(
-    other => other.id !== note.id && [...other.content.matchAll(MENTION)].some(match => titleKey(match[1]!) === key),
+    other =>
+      other.id !== note.id &&
+      ([...other.content.matchAll(MENTION)].some(match => titleKey(match[1]!) === key) || !!cites?.(other.content, key)),
   );
 }
 
@@ -76,7 +68,10 @@ export function withoutSecrets(text: string) {
 // tables become tab-separated rows with their formulas worked out, and images their captions.
 export function plainText(text: string) {
   const withImages = imagesToText(text, (_id, caption) => (caption ? `[Imagem: ${caption}]` : "[Imagem]"));
-  return tablesToText(withImages, "tsv").replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, "").trim();
+  return tablesToText(withImages, "tsv")
+    .replace(MENTION, "$1")
+    .replace(/\[\/?(segredo|nota)\]/gi, "")
+    .trim();
 }
 
 // The timeline's order for a "Quando" like "Ano 312, inverno" or "-50": its first number. null when it has none.

@@ -1,7 +1,9 @@
 import { Capacitor } from "@capacitor/core";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { featureOn, type FeatureId } from "../lib/features";
+import { CitationResolver, FOOTNOTE_MARK, FOOTNOTE_MARKS, sourcesByTitle, type SourceNote } from "../lib/citations";
 import { MENTION, plainText, withoutSecrets } from "../lib/mentions";
+import { referenceMarkdown, referencePlain } from "../lib/references";
 import type { NoteItem } from "../lib/notes";
 import { bodyParts, imageIds, imagesToText, type BlockKind } from "../lib/blocks";
 import { loadImages, type NoteImage } from "../lib/images";
@@ -9,6 +11,7 @@ import { evaluateSheet, tablesToText, type Sheet } from "../lib/sheets";
 import { childrenOf } from "../lib/order";
 import type { SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords } from "../lib/writing";
+import { ReferenceLine } from "./ReferenceForm.tsx";
 import "./CSS/Images.css";
 import "./CSS/Sheets.css";
 import "./CSS/Writing.css";
@@ -51,11 +54,46 @@ function headingLevel(depth: number) {
   return Math.min(depth + 2, 6);
 }
 
-// A note's text for reading and exporting: [[Nome]] mentions read as plain names, in the players' version the game
-// master's secrets are left out, and tables are Markdown tables or tab-separated rows (which paste into a
-// spreadsheet as cells), formulas worked out. In Markdown, images go in whole, so the file stands on its own.
-function noteText(content: string, players: boolean, images?: Map<string, NoteImage>) {
-  let text = players ? withoutSecrets(content) : content;
+// Citations and footnotes, resolved through the whole manuscript in reading order (see CitationResolver).
+type Resolving = { sources: Map<string, SourceNote>; citations: boolean; footnotes: boolean };
+
+function resolverFor(resolving: Resolving, mark: (n: number) => string) {
+  return new CitationResolver(resolving.sources, { citations: resolving.citations, footnotes: resolving.footnotes, mark });
+}
+
+// The text each note shows (secrets left out for the players), with citations and footnotes resolved, and what
+// the manuscript ends with: the footnotes and the sources cited.
+function resolveSections(sections: Section[], players: boolean, resolver: CitationResolver) {
+  const texts = new Map<string, string>();
+  for (const section of sections) {
+    if (section.kind === "note") {
+      texts.set(section.note.id, resolver.resolve(players ? withoutSecrets(section.note.content) : section.note.content));
+    }
+  }
+  return { texts, footnotes: resolver.footnotes, references: resolver.references() };
+}
+
+// A footnote's number, raised.
+function withMarks(text: string): ReactNode {
+  const pieces = text.split(new RegExp(FOOTNOTE_MARKS.source, "g"));
+  if (pieces.length === 1) return text;
+  return pieces.map((piece, index) =>
+    index % 2 ? (
+      <sup key={index} className="manuscript__fnref">
+        {piece}
+      </sup>
+    ) : (
+      piece
+    ),
+  );
+}
+
+// A note's text for exporting: [[Nome]] mentions read as plain names, in the players' version the game master's
+// secrets are left out, citations and footnotes go through the resolver, and tables are Markdown tables or
+// tab-separated rows (which paste into a spreadsheet as cells), formulas worked out. In Markdown, images go in
+// whole, so the file stands on its own.
+function noteText(content: string, players: boolean, resolver: CitationResolver, images?: Map<string, NoteImage>) {
+  let text = resolver.resolve(players ? withoutSecrets(content) : content);
   if (images) {
     text = imagesToText(tablesToText(text, "markdown"), (id, caption) => {
       const image = images.get(id);
@@ -79,7 +117,7 @@ function Figure({ image, caption }: { image?: NoteImage; caption: string }) {
 // A table on the page, with formulas worked out; the first row is its header.
 function SheetTable({ rows }: { rows: Sheet }) {
   const [head = [], ...body] = evaluateSheet(rows);
-  const text = (value: string) => value.replace(MENTION, "$1");
+  const text = (value: string) => withMarks(value.replace(MENTION, "$1"));
   return (
     <table className="manuscript__table">
       <thead>
@@ -107,8 +145,9 @@ function SheetTable({ rows }: { rows: Sheet }) {
 }
 
 type NoteBodyProps = {
+  // Already resolved (resolveSections), with the secrets left out of the players' version.
   content: string;
-  players: boolean;
+  // Whether secrets that stay in are marked.
   secrets: boolean;
   // The blocks drawn as such (their features are on); the rest read as text.
   kinds: BlockKind[];
@@ -116,17 +155,16 @@ type NoteBodyProps = {
 };
 
 // A note on the page: its text (secrets marked, or left out for the players) with its tables and images.
-function NoteBody({ content, players, secrets, kinds, images }: NoteBodyProps) {
-  const source = players ? withoutSecrets(content) : content;
+function NoteBody({ content, secrets, kinds, images }: NoteBodyProps) {
   return (
     <>
-      {bodyParts(source, kinds).map((part, index) =>
+      {bodyParts(content, kinds).map((part, index) =>
         part.kind === "table" ? (
           <SheetTable key={index} rows={part.rows} />
         ) : part.kind === "image" ? (
           <Figure key={index} image={images.get(part.id)} caption={part.caption} />
         ) : (
-          <Fragment key={index}>{secrets && !players ? <NoteText content={part.text} /> : plainText(part.text)}</Fragment>
+          <Fragment key={index}>{secrets ? <NoteText content={part.text} /> : withMarks(plainText(part.text))}</Fragment>
         ),
       )}
     </>
@@ -141,36 +179,44 @@ function NoteText({ content }: { content: string }) {
       {parts.map((part, index) =>
         index % 2 ? (
           <span key={index} className="manuscript__secret">
-            {part.replace(MENTION, "$1").trim()}
+            {withMarks(part.replace(MENTION, "$1").trim())}
           </span>
         ) : (
-          part.replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, "")
+          <Fragment key={index}>{withMarks(part.replace(MENTION, "$1").replace(/\[\/?segredo\]/gi, ""))}</Fragment>
         ),
       )}
     </>
   );
 }
 
-function toMarkdown(title: string, sections: Section[], players: boolean, images: Map<string, NoteImage>) {
+function toMarkdown(title: string, sections: Section[], players: boolean, images: Map<string, NoteImage>, resolving: Resolving) {
+  const resolver = resolverFor(resolving, n => `[^${n}]`);
   const parts = [`# ${title}`];
   for (const section of sections) {
     const hashes = "#".repeat(headingLevel(section.depth));
     if (section.kind === "heading") parts.push(`${hashes} ${section.text}`);
     else {
       if (section.note.title.trim()) parts.push(`${hashes} ${section.note.title.trim()}`);
-      const text = noteText(section.note.content, players, images);
+      const text = noteText(section.note.content, players, resolver, images);
       if (text) parts.push(text);
     }
   }
+  const references = resolver.references();
+  if (references.length) parts.push("## Referências", ...references.map(source => referenceMarkdown(source.reference)));
+  if (resolver.footnotes.length) parts.push(resolver.footnotes.map((note, index) => `[^${index + 1}]: ${note}`).join("\n"));
   return `${parts.join("\n\n")}\n`;
 }
 
-function toPlainText(title: string, sections: Section[], players: boolean) {
+function toPlainText(title: string, sections: Section[], players: boolean, resolving: Resolving) {
+  const resolver = resolverFor(resolving, n => `[${n}]`);
   const parts = [title];
   for (const section of sections) {
     if (section.kind === "heading") parts.push(section.text.toUpperCase());
-    else parts.push(...[section.note.title.trim(), noteText(section.note.content, players)].filter(Boolean));
+    else parts.push(...[section.note.title.trim(), noteText(section.note.content, players, resolver)].filter(Boolean));
   }
+  if (resolver.footnotes.length) parts.push("NOTAS", resolver.footnotes.map((note, index) => `${index + 1}. ${note}`).join("\n"));
+  const references = resolver.references();
+  if (references.length) parts.push("REFERÊNCIAS", ...references.map(source => referencePlain(source.reference)));
   return `${parts.join("\n\n")}\n`;
 }
 
@@ -191,6 +237,12 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
   const kinds: BlockKind[] = [];
   if (featureOn(features, "tables")) kinds.push("table");
   if (featureOn(features, "images")) kinds.push("image");
+  const resolving: Resolving = {
+    sources: sourcesByTitle(notes),
+    citations: featureOn(features, "citations"),
+    footnotes: featureOn(features, "footnotes"),
+  };
+  const resolved = resolveSections(sections, hideSecrets, resolverFor(resolving, FOOTNOTE_MARK));
 
   // The pictures the notes show, loaded once they're needed.
   const [images, setImages] = useState(new Map<string, NoteImage>());
@@ -208,13 +260,13 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
   }, [wanted.join(" ")]);
 
   const copy = async () => {
-    await navigator.clipboard.writeText(toPlainText(title, sections, hideSecrets));
+    await navigator.clipboard.writeText(toPlainText(title, sections, hideSecrets, resolving));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const download = () => {
-    const url = URL.createObjectURL(new Blob([toMarkdown(title, sections, hideSecrets, images)], { type: "text/markdown;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([toMarkdown(title, sections, hideSecrets, images, resolving)], { type: "text/markdown;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = `${title.replace(/[\\/:*?"<>|]+/g, "-")}.md`;
@@ -277,11 +329,31 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
                 </Heading>
               )}
               <div className="manuscript__text">
-                <NoteBody content={note.content} players={hideSecrets} secrets={secrets} kinds={kinds} images={images} />
+                <NoteBody content={resolved.texts.get(note.id) ?? ""} secrets={secrets && !hideSecrets} kinds={kinds} images={images} />
               </div>
             </section>
           );
         })}
+        {resolved.footnotes.length > 0 && (
+          <section className="manuscript__endnotes">
+            <h2 className="manuscript__part">Notas</h2>
+            <ol>
+              {resolved.footnotes.map((footnote, index) => (
+                <li key={index}>{footnote}</li>
+              ))}
+            </ol>
+          </section>
+        )}
+        {resolved.references.length > 0 && (
+          <section className="manuscript__references">
+            <h2 className="manuscript__part">Referências</h2>
+            {resolved.references.map(source => (
+              <p key={source.id} className="manuscript__reference">
+                <ReferenceLine reference={source.reference} />
+              </p>
+            ))}
+          </section>
+        )}
       </div>
     </article>
   );

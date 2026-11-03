@@ -1,18 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Gadget } from "../lib/gadgets";
+// An entry in the menu: a gadget (gadgets.ts), or something written into the text, like a citation.
+export type MenuItem = { id: string; label: string };
 
 type GadgetMenuProps = {
   // Where it opens: the pointer, or under the button that opened it.
   x: number;
   y: number;
-  gadgets: Gadget[];
-  onPick: (gadget: Gadget) => void;
+  items: MenuItem[];
+  onPick: (id: string) => void;
   onClose: () => void;
 };
 
-// The note's own right-click menu: what can be inserted under the line that was clicked. Arrows move through it,
+// The note's own right-click menu: what can be inserted where the note was clicked. Arrows move through it,
 // Enter picks, Esc or a click anywhere else closes it.
-export default function GadgetMenu({ x, y, gadgets, onPick, onClose }: GadgetMenuProps) {
+export default function GadgetMenu({ x, y, items, onPick, onClose }: GadgetMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: x, top: y });
 
@@ -76,9 +77,9 @@ export default function GadgetMenu({ x, y, gadgets, onPick, onClose }: GadgetMen
       <p className="gadget-menu__heading" aria-hidden="true">
         Inserir
       </p>
-      {gadgets.map(gadget => (
-        <button key={gadget.id} type="button" role="menuitem" className="gadget-menu__item" onClick={() => onPick(gadget)}>
-          {gadget.label}
+      {items.map(item => (
+        <button key={item.id} type="button" role="menuitem" className="gadget-menu__item" onClick={() => onPick(item.id)}>
+          {item.label}
         </button>
       ))}
     </div>
