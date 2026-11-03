@@ -75,7 +75,7 @@ function columnIndex(letters: string) {
 }
 
 // A number as typed in a cell: "12", "2,5", "1.234,56", "2.5", "15%". null for anything else.
-export function parseNumber(text: string): number | null {
+function parseNumber(text: string): number | null {
   let value = text.trim().replace(/\s/g, "");
   if (!value) return null;
   let scale = 1;
@@ -90,7 +90,7 @@ export function parseNumber(text: string): number | null {
 }
 
 // Results the way a spreadsheet in Portuguese shows them: a decimal comma and no thousands separator.
-export function formatNumber(value: number) {
+function formatNumber(value: number) {
   return value.toLocaleString("pt-BR", { maximumFractionDigits: 6, useGrouping: false });
 }
 

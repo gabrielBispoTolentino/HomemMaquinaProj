@@ -130,7 +130,7 @@ const env = {
   ...windowEnv,
 };
 
-export const supabaseConfig = {
+const supabaseConfig = {
   url: env.VITE_SUPABASE_URL ?? "",
   anonKey: env.VITE_SUPABASE_ANON_KEY ?? "",
 };

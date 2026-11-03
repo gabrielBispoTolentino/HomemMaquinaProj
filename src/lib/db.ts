@@ -7,7 +7,7 @@ import sqlWasmUrl from "sql.js/dist/sql-wasm-browser.wasm" with { type: "file" }
 // Each platform opens it its own way:
 // - Android/iOS: a native SQLite file through @capacitor-community/sqlite.
 // - Electron: a file in the app's user data folder, opened with node:sqlite by preload.cjs.
-// - Browser (bun dev): sql.js in memory, saved to IndexedDB after every write.
+// - Browser (bun dev): sql.js in memory, saved to IndexedDB shortly after writes (see openBrowser).
 
 export type SqlValue = string | number | null;
 export type Statement = { sql: string; params?: SqlValue[] };
@@ -281,6 +281,7 @@ function openElectron(localDb: ElectronLocalDb): Driver {
 }
 
 // The whole database file is kept under a single IndexedDB key.
+const PERSIST_DELAY_MS = 1000;
 const IDB_STORE = "files";
 const IDB_KEY = "archivist.sqlite";
 
@@ -308,17 +309,38 @@ async function openBrowser(): Promise<Driver> {
   const db: SqlJsDatabase = new SQL.Database(saved);
   db.exec("PRAGMA foreign_keys = ON;");
 
-  const persist = async () => {
+  // The whole file is copied out on each save, images included, so writes close together (every autosave, sync's
+  // bookkeeping) are saved together, at most once per PERSIST_DELAY_MS; leaving or hiding the page saves at once.
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let saving: Promise<void> = Promise.resolve();
+  const save = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
     const data = db.export();
     // export() reopens the database, which resets pragmas.
     db.exec("PRAGMA foreign_keys = ON;");
-    await idbRequest(idb, "readwrite", store => store.put(data, IDB_KEY));
+    saving = saving
+      .then(() => idbRequest(idb, "readwrite", store => store.put(data, IDB_KEY)))
+      .then(
+        () => undefined,
+        err => console.error("Não foi possível guardar o banco local.", err),
+      );
   };
+  const persist = () => {
+    if (!timer) timer = setTimeout(save, PERSIST_DELAY_MS);
+  };
+  const flush = () => {
+    if (timer) save();
+  };
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
+  });
 
   return {
     async exec(sql) {
       db.exec(sql);
-      await persist();
+      persist();
     },
     async all(sql, params) {
       const statement = db.prepare(sql, params);
@@ -336,7 +358,7 @@ async function openBrowser(): Promise<Driver> {
         db.exec("ROLLBACK");
         throw err;
       }
-      await persist();
+      persist();
     },
   };
 }

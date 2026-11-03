@@ -121,7 +121,7 @@ export function referenceText(reference: Reference) {
 
 type Name = { family: string; given: string; institution: boolean };
 
-export function parseNames(text: string): Name[] {
+function parseNames(text: string): Name[] {
   return text
     .split(";")
     .map(name => name.trim())
@@ -299,7 +299,7 @@ function citationAuthor(reference: Reference) {
 }
 
 // "42" is a page; "p. 42", "cap. 3" or anything else is kept as written.
-export function formatLocator(locator: string) {
+function formatLocator(locator: string) {
   const value = locator.trim();
   return /^\d[\d\s,–-]*$/.test(value) ? `p. ${value}` : value;
 }

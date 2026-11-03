@@ -15,17 +15,41 @@ export function endPosition() {
   return Date.now();
 }
 
-export function childKey(child: ChildItem) {
+function childKey(child: ChildItem) {
   return `${child.kind}:${child.item.id}`;
 }
 
-// What's directly inside a subgroup (or the top of the volume, for null), in order.
-export function childrenOf(parentId: string | null, notes: NoteItem[], subgroups: SubgroupItem[]): ChildItem[] {
-  const children: ChildItem[] = [
-    ...subgroups.filter(subgroup => subgroup.parentId === parentId).map(item => ({ kind: "subgroup" as const, item })),
-    ...notes.filter(note => note.subgroup_id === parentId).map(item => ({ kind: "note" as const, item })),
-  ];
-  return children.sort((a, b) => a.item.position - b.item.position);
+// Everything in the volume by parent (null for the top), each list in order. Built once per version of the two lists
+// (the listing replaces them when anything changes), since the tree, the corkboard and the manuscript ask for every
+// subgroup's contents on each render.
+const indexes = new WeakMap<NoteItem[], WeakMap<SubgroupItem[], Map<string | null, readonly ChildItem[]>>>();
+
+function childIndex(notes: NoteItem[], subgroups: SubgroupItem[]) {
+  let bySubgroups = indexes.get(notes);
+  if (!bySubgroups) indexes.set(notes, (bySubgroups = new WeakMap()));
+  let index = bySubgroups.get(subgroups);
+  if (index) return index;
+
+  const lists = new Map<string | null, ChildItem[]>();
+  const add = (parentId: string | null, child: ChildItem) => {
+    const list = lists.get(parentId);
+    if (list) list.push(child);
+    else lists.set(parentId, [child]);
+  };
+  for (const item of subgroups) add(item.parentId, { kind: "subgroup", item });
+  for (const item of notes) add(item.subgroup_id, { kind: "note", item });
+  for (const list of lists.values()) list.sort((a, b) => a.item.position - b.item.position);
+  index = lists;
+  bySubgroups.set(subgroups, index);
+  return index;
+}
+
+const NONE: readonly ChildItem[] = [];
+
+// What's directly inside a subgroup (or the top of the volume, for null), in order. Shared between callers: copy it
+// before changing it.
+export function childrenOf(parentId: string | null, notes: NoteItem[], subgroups: SubgroupItem[]): readonly ChildItem[] {
+  return childIndex(notes, subgroups).get(parentId) ?? NONE;
 }
 
 export type Placement = {

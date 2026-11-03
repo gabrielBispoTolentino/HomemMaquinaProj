@@ -137,6 +137,22 @@ function normalize(value: string) {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
+// A note's own searchable text, folded once per version of the note: the listing replaces a note's object when it
+// changes, so the others keep theirs between searches and saves. With citations on, a source's reference counts too.
+const searchCache = { plain: new WeakMap<NoteItem, string>(), sources: new WeakMap<NoteItem, string>() };
+
+function searchText(note: NoteItem, citations: boolean) {
+  const cache = citations ? searchCache.sources : searchCache.plain;
+  let text = cache.get(note);
+  if (text === undefined) {
+    const fieldText = note.fields.map(field => `${field.key} ${field.value}`).join(" ");
+    const sourceText = citations && note.reference ? referenceText(note.reference) : "";
+    text = normalize(`${note.title} ${note.content} ${note.synopsis} ${fieldText} ${sourceText} ${note.timeline}`);
+    cache.set(note, text);
+  }
+  return text;
+}
+
 // The open volume: the listing in a sidebar on the left and, in the middle, the open note, manuscript or
 // corkboard. On phones the sidebar is a drawer over the middle.
 export default function WorldNotes({ world: initialWorld, onBack, onDeleted, backHandler }: WorldNotesProps) {
@@ -171,21 +187,24 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   const openNote = view?.kind === "note" ? view : null;
 
   const categoryName = (id: string | null) => categories.find(category => category.id === id)?.name ?? "";
-  // A note's whole path is searchable, so "capitulo" also finds the notes nested deeper inside it.
-  const paths = new Map(subgroupPaths(subgroups).map(path => [path.id, path.label]));
-  const subgroupPath = (id: string | null) => (id ? paths.get(id) ?? "" : "");
   const terms = normalize(query).split(/\s+/).filter(Boolean);
   const filtering = terms.length > 0 || categoryId !== null || (on("status") && statusFilter !== "");
-  const visibleNotes = notes.filter(note => {
-    if (categoryId && note.category_id !== categoryId) return false;
-    if (on("status") && statusFilter && (note.status ?? "none") !== statusFilter) return false;
-    const fieldText = note.fields.map(field => `${field.key} ${field.value}`).join(" ");
-    const sourceText = on("citations") && note.reference ? referenceText(note.reference) : "";
-    const text = normalize(
-      `${note.title} ${note.content} ${note.synopsis} ${fieldText} ${sourceText} ${note.timeline} ${categoryName(note.category_id)} ${subgroupPath(note.subgroup_id)}`,
-    );
-    return terms.every(term => text.includes(term));
-  });
+  // Only worked out while searching. A note's whole path is searchable, so "capitulo" also finds the notes nested
+  // deeper inside it.
+  const paths = terms.length ? new Map(subgroupPaths(subgroups).map(path => [path.id, path.label])) : null;
+  const categoryNames = terms.length ? new Map(categories.map(category => [category.id, category.name])) : null;
+  const visibleNotes = !filtering
+    ? notes
+    : notes.filter(note => {
+        if (categoryId && note.category_id !== categoryId) return false;
+        if (on("status") && statusFilter && (note.status ?? "none") !== statusFilter) return false;
+        if (!terms.length) return true;
+        const place = normalize(
+          `${note.category_id ? categoryNames!.get(note.category_id) ?? "" : ""} ${note.subgroup_id ? paths!.get(note.subgroup_id) ?? "" : ""}`,
+        );
+        const text = `${searchText(note, on("citations"))} ${place}`;
+        return terms.every(term => text.includes(term));
+      });
   const countText = notes.length === 1 ? "1 verbete" : `${notes.length} verbetes`;
 
   const categoryNoteCounts: Record<string, number> = {};

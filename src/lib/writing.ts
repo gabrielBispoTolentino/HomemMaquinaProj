@@ -11,7 +11,6 @@ export const NOTE_STATUSES = [
   { id: "final", label: "Final", mark: "●" },
 ] as const;
 
-export type NoteStatus = (typeof NOTE_STATUSES)[number]["id"];
 
 export function statusInfo(status: string | null) {
   return NOTE_STATUSES.find(item => item.id === status) ?? null;

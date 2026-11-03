@@ -129,7 +129,7 @@ export async function deleteSubgroup({ id, parentId }: SubgroupItem, plan: Delet
 }
 
 // A subgroup's direct subgroups, in listing order.
-export function childSubgroups(subgroups: SubgroupItem[], parentId: string | null) {
+function childSubgroups(subgroups: SubgroupItem[], parentId: string | null) {
   return subgroups.filter(subgroup => subgroup.parentId === parentId).sort((a, b) => a.position - b.position);
 }
 

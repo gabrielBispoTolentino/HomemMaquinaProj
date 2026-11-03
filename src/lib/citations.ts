@@ -12,8 +12,8 @@ import { citationText, referenceSortKey, type Reference } from "./references";
 // A source is a note with a reference (references.ts); like [[mentions]], citations find it by title, ignoring case
 // and accents.
 
-export const CITATION = /\[@([^\]\n]+)\]/g;
-export const FOOTNOTE = /\[nota\]([\s\S]*?)\[\/nota\]/gi;
+const CITATION = /\[@([^\]\n]+)\]/g;
+const FOOTNOTE = /\[nota\]([\s\S]*?)\[\/nota\]/gi;
 
 export type CitedItem = { name: string; locator: string };
 

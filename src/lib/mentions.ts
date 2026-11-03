@@ -6,7 +6,7 @@ import { tablesToText } from "./sheets";
 // marks a passage only the game master should see (the "secrets" feature).
 
 export const MENTION = /\[\[([^[\]\n]+?)\]\]/g;
-export const SECRET = /\[segredo\]([\s\S]*?)\[\/segredo\]/gi;
+const SECRET = /\[segredo\]([\s\S]*?)\[\/segredo\]/gi;
 
 // Case- and accent-insensitive, so [[aurora]] finds "Aurora".
 export function titleKey(title: string) {

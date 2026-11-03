@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { categoryColor, createCategory, findCategoryByName, type CategoryItem } from "../lib/categories";
 import { featureOn, type FeatureId } from "../lib/features";
@@ -576,16 +576,22 @@ export default function NoteEditor(props: NoteEditorProps) {
     }
   });
 
-  const byTitle = notesByTitle(allNotes);
-  const sources = sourcesByTitle(allNotes);
+  // The volume's notes only change when something is saved, so what's looked up in all of them is worked out then,
+  // not on every key press.
+  const byTitle = useMemo(() => notesByTitle(allNotes), [allNotes]);
+  const sources = useMemo(() => sourcesByTitle(allNotes), [allNotes]);
   const inlineKinds = { mentions: on("mentions"), citations: on("citations"), footnotes: on("footnotes") };
   // What this note mentions, and the sources it cites.
-  const mentions = [
-    ...new Set([
-      ...(on("mentions") ? mentionedNotes(content, byTitle) : []),
-      ...(on("citations") ? citedSources(content, sources) : []),
-    ]),
-  ].filter(item => item.id !== noteId.current);
+  const mentions = useMemo(
+    () =>
+      [
+        ...new Set([
+          ...(inlineKinds.mentions ? mentionedNotes(content, byTitle) : []),
+          ...(inlineKinds.citations ? citedSources(content, sources) : []),
+        ]),
+      ].filter(item => item.id !== noteId.current),
+    [content, byTitle, sources, inlineKinds.mentions, inlineKinds.citations, noteId.current],
+  );
   // Switches a piece of the text to its textarea within the click or key press, so phones still open the keyboard.
   const editContent = (part = 0, caret?: number, scrollTop?: number) => {
     flushSync(() => setEditingPart(part));
@@ -598,12 +604,12 @@ export default function NoteEditor(props: NoteEditorProps) {
   };
   // A source shows where it's cited too, mentions or not.
   const citedHere = on("citations") && reference !== null;
-  const self = { id: noteId.current ?? "", title };
-  const mentionedIn = on("mentions")
-    ? backlinks(self, allNotes, citedHere ? citesTitle : undefined)
-    : citedHere && titleKey(title)
-      ? allNotes.filter(other => other.id !== self.id && citesTitle(other.content, titleKey(title)))
-      : [];
+  const mentionedIn = useMemo(() => {
+    const self = { id: noteId.current ?? "", title };
+    if (inlineKinds.mentions) return backlinks(self, allNotes, citedHere ? citesTitle : undefined);
+    const key = titleKey(title);
+    return citedHere && key ? allNotes.filter(other => other.id !== self.id && citesTitle(other.content, key)) : [];
+  }, [allNotes, title, citedHere, inlineKinds.mentions, noteId.current]);
 
   const statusText = error || (saveState === "pending" ? "Arquivando..." : "Arquivado");
   const wordsText = formatWords(countWords(content));
