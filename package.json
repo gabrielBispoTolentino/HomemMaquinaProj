@@ -11,7 +11,10 @@
     "build": "bun run build.ts",
     "build:mobile": "bun run build.ts \"--env=VITE_*\" && cap sync",
     "android": "bun run build:mobile && cap open android",
-    "ios": "bun run build:mobile && cap open ios"
+    "ios": "bun run build:mobile && cap open ios",
+    "build:desktop": "bun run build.ts --sourcemap=none",
+    "dist:win": "bun run build:desktop && electron-builder --win --publish never",
+    "dist:android": "bun run build.ts \"--env=VITE_*\" --sourcemap=none && cap sync android && node scripts/gradle-release.cjs"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.1",
@@ -35,5 +38,41 @@
     "@types/sql.js": "^1.4.11",
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3"
+  },
+  "description": "Archivist — compêndio pessoal para escrita acadêmica e criativa",
+  "author": "Gabriel Bispo Tolentino",
+  "build": {
+    "appId": "com.certinho.app",
+    "productName": "Archivist",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "dist/**",
+      "assets/icon.png",
+      ".env",
+      "!node_modules/**",
+      "node_modules/dotenv/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "Archivist-Setup-${version}.exe"
+    }
   }
 }

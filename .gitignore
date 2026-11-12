@@ -35,3 +35,9 @@ supabase/
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# release builds
+release
+android/keystore.properties
+*.jks
+*.keystore
