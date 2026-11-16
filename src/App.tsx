@@ -6,6 +6,7 @@ import "./index.css";
 import "./pages/CSS/Motion.css";
 import { restoreUser, signOut, type LoggedUser } from "./lib/auth";
 import { endSyncSession, setSyncEnabled, startSyncSession } from "./lib/sync";
+import { checkForUpdates } from "./lib/updates";
 import Cadastrar from "./pages/Cadastrar.tsx";
 import { closeOpenDialog, DialogHost } from "./pages/Dialogs.tsx";
 import Login from "./pages/Login.tsx";
@@ -77,6 +78,11 @@ export function App() {
     const choice = await startSyncSession(user.id);
     setScreen(choice === null ? "sync" : "worlds");
   };
+
+  // A newer release, if there is one, is offered once per launch (see updates.ts).
+  useEffect(() => {
+    void checkForUpdates();
+  }, []);
 
   // At start: the last user still logged in goes straight back to the volume they had open, or to their volumes.
   useEffect(() => {

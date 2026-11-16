@@ -1,7 +1,7 @@
 {
   "name": "archivist",
   "productName": "Archivist",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "main.cjs",
@@ -14,7 +14,8 @@
     "ios": "bun run build:mobile && cap open ios",
     "build:desktop": "bun run build.ts --sourcemap=none",
     "dist:win": "bun run build:desktop && electron-builder --win --publish never",
-    "dist:android": "bun run build.ts \"--env=VITE_*\" --sourcemap=none && cap sync android && node scripts/gradle-release.cjs"
+    "dist:android": "bun run build.ts \"--env=VITE_*\" --sourcemap=none && cap sync android && node scripts/gradle-release.cjs",
+    "release": "node scripts/release.cjs"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.1",

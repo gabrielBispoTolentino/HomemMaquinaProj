@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+// The app's version, from package.json.
+def appVersion = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json')).version
+def appVersionCode = appVersion.tokenize('.-').take(3).collect { it as int }.with { it[0] * 10000 + it[1] * 100 + it[2] }
+
 android {
     namespace = "com.certinho.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +11,10 @@ android {
         applicationId "com.certinho.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.1.0"
+        // From package.json's version, so a release only changes it there: 1.2.3 is versionCode 10203, and each
+        // release must be higher than the last for Android to install it as an update (see src/lib/updates.ts).
+        versionCode appVersionCode
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
