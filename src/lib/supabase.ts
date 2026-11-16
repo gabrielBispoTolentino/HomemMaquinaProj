@@ -146,9 +146,10 @@ export function getSupabaseClient() {
 
   if (!supabaseClient) {
     supabaseClient = createClient<Database>(supabaseConfig.url, supabaseConfig.anonKey, {
-      // The session lasts while the app is open; sync keeps using it, so it has to be refreshed.
+      // The session is kept in localStorage, so the app opens still logged in (see restoreUser in auth.ts); sync keeps
+      // using it, so it has to be refreshed.
       auth: {
-        persistSession: false,
+        persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,
       },

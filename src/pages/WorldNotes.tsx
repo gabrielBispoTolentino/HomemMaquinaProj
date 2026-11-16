@@ -92,8 +92,6 @@ type WorldNotesProps = {
 
 let viewCount = 0;
 
-const SIDEBAR_HIDDEN_KEY = "archivist.sidebarHidden";
-
 // What was open in each volume when it was last left, so coming back picks up where the user stopped.
 const LAST_VIEW_KEY = (worldId: string) => `archivist.lastView.${worldId}`;
 
@@ -122,14 +120,10 @@ function isNarrow() {
   return window.matchMedia(NARROW_QUERY).matches;
 }
 
-// Phones always start with the drawer closed; wider screens remember whether the sidebar was hidden.
+// Wide screens always open a volume with the sidebar shown (it can be hidden while there). Phones start with the
+// drawer closed, and open it once the volume has loaded if nothing was reopened in the middle.
 function initialSidebarHidden() {
-  if (isNarrow()) return true;
-  try {
-    return localStorage.getItem(SIDEBAR_HIDDEN_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return isNarrow();
 }
 
 // Case- and accent-insensitive, so "missao" finds "Missão".
@@ -243,7 +237,8 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
         setSubgroups(worldSubgroups);
         setCategories(worldCategories);
         setStats(worldStats);
-        reopen(worldNotes, worldSubgroups);
+        // Never a blank page with the listing hidden: with nothing to reopen, the drawer opens on phones.
+        if (!reopen(worldNotes, worldSubgroups) && isNarrow()) setSidebarHidden(false);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao carregar verbetes.";
         setError(message);
@@ -256,36 +251,37 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   }, [world.id]);
 
   // The first volume ever opened on this device starts with the guide; any other picks up where it was left,
-  // as long as what was open is still there.
+  // as long as what was open is still there. Returns whether something was reopened.
   const reopen = (worldNotes: NoteItem[], worldSubgroups: SubgroupItem[]) => {
     if (!seen("volumeGuide")) {
       markSeen("volumeGuide");
       setView({ kind: "help", key: ++viewCount });
-      return;
+      return true;
     }
     const saved = loadSavedView(world.id);
-    if (!saved) return;
+    if (!saved) return false;
     if (saved.kind === "note") {
       const note = worldNotes.find(item => item.id === saved.id);
-      if (note) setView({ kind: "note", id: note.id, subgroupId: note.subgroup_id, key: ++viewCount });
+      if (!note) return false;
+      setView({ kind: "note", id: note.id, subgroupId: note.subgroup_id, key: ++viewCount });
     } else if (saved.kind === "manuscript" || saved.kind === "board") {
       const subgroupId = saved.subgroupId ?? null;
-      if (subgroupId === null || worldSubgroups.some(item => item.id === subgroupId)) {
-        setView({ kind: saved.kind, subgroupId, key: ++viewCount });
-      }
+      if (subgroupId !== null && !worldSubgroups.some(item => item.id === subgroupId)) return false;
+      setView({ kind: saved.kind, subgroupId, key: ++viewCount });
     } else if (saved.kind !== "settings") {
       setView({ kind: saved.kind, key: ++viewCount });
+    } else {
+      return false;
     }
+    return true;
   };
 
-  // Remembers what's open, once the volume has loaded (before that the view is still being restored). A quick
-  // visit to Recursos, or a new note not saved yet, keeps what was remembered before.
+  // Remembers the last thing opened, once the volume has loaded (before that the view is still being restored).
+  // Closing it keeps it remembered, so the volume reopens on it; so do a quick visit to Recursos and a new note not
+  // saved yet.
   useEffect(() => {
     if (loading) return;
-    if (!view || view.kind === "settings" || (view.kind === "note" && view.id === null)) {
-      if (!view) storeView(world.id, null);
-      return;
-    }
+    if (!view || view.kind === "settings" || (view.kind === "note" && view.id === null)) return;
     storeView(world.id, {
       kind: view.kind,
       id: view.kind === "note" ? view.id : undefined,
@@ -317,7 +313,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
     return () => window.removeEventListener("keydown", handleKey);
   });
 
-  // Crossing into the phone layout closes the drawer; going back to a wide window restores the saved choice.
+  // Crossing into the phone layout closes the drawer; going back to a wide window shows the sidebar.
   useEffect(() => {
     const query = window.matchMedia(NARROW_QUERY);
     const handleChange = () => setSidebarHidden(initialSidebarHidden());
@@ -325,15 +321,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
     return () => query.removeEventListener("change", handleChange);
   }, []);
 
-  const toggleSidebar = (hidden: boolean) => {
-    setSidebarHidden(hidden);
-    if (isNarrow()) return;
-    try {
-      localStorage.setItem(SIDEBAR_HIDDEN_KEY, hidden ? "1" : "0");
-    } catch {
-      // Only a convenience; the sidebar just shows again next time.
-    }
-  };
+  const toggleSidebar = (hidden: boolean) => setSidebarHidden(hidden);
 
   useEffect(() => {
     backHandler.current = () => {

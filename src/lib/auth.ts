@@ -11,6 +11,67 @@ export type LoggedUser = {
 
 const CONFIRM_EMAIL = "Enviamos um link de confirmação para o seu email. Confirme e entre de novo.";
 
+// The last user who logged in on this device, so the app opens already logged in. Their Supabase session is kept by
+// the Supabase client itself (persistSession in supabase.ts); this only spares a network round trip, so the app also
+// opens offline. Logging out forgets both.
+const LAST_USER_KEY = "archivist.lastUser";
+
+type RememberedUser = { user: LoggedUser; authId: string };
+
+function rememberUser(user: LoggedUser, authId: string) {
+  try {
+    localStorage.setItem(LAST_USER_KEY, JSON.stringify({ user, authId } satisfies RememberedUser));
+  } catch {
+    // Only a convenience: the next start asks for the login again.
+  }
+}
+
+function forgetUser() {
+  try {
+    localStorage.removeItem(LAST_USER_KEY);
+  } catch {
+    // Nothing to forget.
+  }
+}
+
+function rememberedUser(): RememberedUser | null {
+  try {
+    const stored = localStorage.getItem(LAST_USER_KEY);
+    const parsed = stored ? (JSON.parse(stored) as RememberedUser) : null;
+    return parsed && typeof parsed.user?.id === "number" && typeof parsed.authId === "string" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+// At start: the user still logged in on this device, or null. A session that can't be refreshed for lack of network
+// still counts, since the app works offline; one that's gone (logged out, or revoked) asks for the login again.
+export async function restoreUser(): Promise<LoggedUser | null> {
+  const remembered = rememberedUser();
+  if (!remembered) return null;
+  try {
+    const { data, error } = await getSupabaseClient().auth.getSession();
+    const session = data.session;
+    if (session) {
+      if (session.user.id !== remembered.authId) {
+        forgetUser();
+        return null;
+      }
+      return remembered.user;
+    }
+    if (error && isNetworkError(error)) return remembered.user;
+  } catch (err) {
+    if (isNetworkError(err)) return remembered.user;
+  }
+  forgetUser();
+  return null;
+}
+
+function isNetworkError(err: unknown) {
+  const name = err instanceof Error ? err.name : "";
+  return name === "AuthRetryableFetchError" || (typeof navigator !== "undefined" && navigator.onLine === false);
+}
+
 async function loadProfile(authId: string): Promise<LoggedUser> {
   const { data, error } = await getSupabaseClient()
     .from("user")
@@ -19,6 +80,7 @@ async function loadProfile(authId: string): Promise<LoggedUser> {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Conta não encontrada.");
+  rememberUser(data, authId);
   return data;
 }
 
@@ -62,6 +124,7 @@ export async function signUp({ name, email, password, cellphone }: SignUpForm): 
 }
 
 export async function signOut() {
+  forgetUser();
   try {
     await getSupabaseClient().auth.signOut({ scope: "local" });
   } catch (err) {
