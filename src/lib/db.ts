@@ -179,19 +179,28 @@ export const SYNCED_TABLES = [
 ] as const;
 
 // Note every insert, update and delete in a synced table while someone is logged in, including rows removed by a
-// cascade. Created one by one through batch(), since the native driver's exec() splits on semicolons. IF NOT EXISTS
-// leaves an existing trigger as it was, so changing one means dropping the old one first.
+// cascade. Created one by one through batch(), since the native driver's exec() splits on semicolons, and dropped
+// and made again at every start, so a changed trigger reaches existing databases.
+// The old note is deleted before the new one goes in, rather than INSERT OR REPLACE: a conflict clause inside a
+// trigger gives way to the one of the statement that fired it, and an upsert's DO UPDATE (the day's word count in
+// writing.ts) fires with ABORT, which turned the replace into "UNIQUE constraint failed: sync_changes" and the save
+// failed whenever the row already had a change waiting to be sent.
 const SYNC_TRIGGERS = SYNCED_TABLES.flatMap(({ table, key }) =>
-  (["INSERT", "UPDATE", "DELETE"] as const).map(
-    event => `
-      CREATE TRIGGER IF NOT EXISTS ${table}_sync_${event.toLowerCase()} AFTER ${event} ON ${table}
+  (["INSERT", "UPDATE", "DELETE"] as const).flatMap(event => {
+    const name = `${table}_sync_${event.toLowerCase()}`;
+    const rowKey = key(event === "DELETE" ? "OLD" : "NEW");
+    return [
+      `DROP TRIGGER IF EXISTS ${name}`,
+      `
+      CREATE TRIGGER ${name} AFTER ${event} ON ${table}
       WHEN (SELECT applying FROM sync_state) = 0 AND (SELECT user_id FROM sync_state) IS NOT NULL
       BEGIN
-        INSERT OR REPLACE INTO sync_changes (tbl, row_id, user_id, changed_at)
-        VALUES ('${table}', ${key(event === "DELETE" ? "OLD" : "NEW")}, (SELECT user_id FROM sync_state),
-          strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+        DELETE FROM sync_changes WHERE tbl = '${table}' AND row_id = ${rowKey};
+        INSERT INTO sync_changes (tbl, row_id, user_id, changed_at)
+        VALUES ('${table}', ${rowKey}, (SELECT user_id FROM sync_state), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
       END`,
-  ),
+    ];
+  }),
 );
 
 // Milliseconds since 1970 for a stored ISO timestamp, in SQL.

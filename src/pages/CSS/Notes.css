@@ -1540,6 +1540,38 @@ body.is-dragging * {
   .volume__main {
     padding: 0.75rem 0.75rem 1rem;
   }
+
+  /* The keyboard takes half the screen, which left the text squeezed out under the page's edge. On phones the page
+     scrolls as a whole instead, and the text grows with what's written (the line being written is kept in view,
+     see keepCaretInView in NoteEditor); with little written, it still fills the rest of the page. */
+  .note-editor {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .note-editor__body,
+  .note-editor__part {
+    flex: 1 0 auto;
+  }
+
+  .note-editor__body--blocks {
+    overflow-y: visible;
+  }
+
+  .note-editor__content {
+    flex: 1 0 auto;
+    field-sizing: content;
+    min-height: 6rem;
+    overflow: hidden;
+  }
+
+  .note-editor__body--blocks .note-editor__content {
+    min-height: 1lh;
+  }
+
+  .note-editor__content--reading {
+    overflow: visible;
+  }
 }
 
 @media (min-width: 800px) {

@@ -80,6 +80,48 @@ function mentionAtCaret(text: string, caret: number) {
   return match ? { start: caret - match[1]!.length, query: match[1]! } : null;
 }
 
+// On phones the page scrolls as a whole (see Notes.css), so the line being written is scrolled into view by hand:
+// once as it's typed, and again when the keyboard opens and the page gets shorter. Where the caret sits is measured
+// on a hidden copy of the textarea's text, laid out the same way.
+const PHONE_QUERY = "(max-width: 799px)";
+
+function caretTop(textarea: HTMLTextAreaElement) {
+  const style = getComputedStyle(textarea);
+  const mirror = document.createElement("div");
+  for (const property of ["font", "letterSpacing", "lineHeight", "padding", "border", "boxSizing", "tabSize"] as const) {
+    mirror.style[property] = style[property];
+  }
+  Object.assign(mirror.style, {
+    position: "absolute",
+    visibility: "hidden",
+    top: "0",
+    left: "-9999px",
+    width: `${textarea.clientWidth}px`,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "break-word",
+  });
+  mirror.textContent = textarea.value.slice(0, textarea.selectionEnd);
+  const marker = document.createElement("span");
+  marker.textContent = "\u200b";
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const top = marker.offsetTop;
+  mirror.remove();
+  return { top, line: parseFloat(style.lineHeight) || 28 };
+}
+
+function keepCaretInView(textarea: HTMLTextAreaElement) {
+  if (!window.matchMedia(PHONE_QUERY).matches) return;
+  const page = textarea.closest<HTMLElement>(".note-editor");
+  if (!page || page.scrollHeight <= page.clientHeight) return;
+  const { top, line } = caretTop(textarea);
+  const caret = textarea.getBoundingClientRect().top + top;
+  const view = page.getBoundingClientRect();
+  const margin = line * 1.5;
+  if (caret + line + margin > view.bottom) page.scrollTop += caret + line + margin - view.bottom;
+  else if (caret - margin < view.top) page.scrollTop -= view.top - (caret - margin);
+}
+
 export default function NoteEditor(props: NoteEditorProps) {
   const { world, note, categories, subgroups, features, allNotes } = props;
   const preset = note ? undefined : props.preset;
@@ -568,6 +610,23 @@ export default function NoteEditor(props: NoteEditorProps) {
     });
   };
 
+  // The keyboard opening on a phone shortens the page; the line being written stays in view.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const onResize = () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLTextAreaElement && active.classList.contains("note-editor__content")) {
+        keepCaretInView(active);
+      }
+    };
+    viewport?.addEventListener("resize", onResize);
+    window.addEventListener("resize", onResize);
+    return () => {
+      viewport?.removeEventListener("resize", onResize);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
   // Between tables and images, each piece of text grows with what's in it, and the page scrolls as a whole.
   useLayoutEffect(() => {
     for (const textarea of textRefs.current.values()) {
@@ -865,6 +924,9 @@ export default function NoteEditor(props: NoteEditorProps) {
                     onChange={event => {
                       setPart(index, { kind: "text", text: event.target.value });
                       trackMention(event.target, index);
+                      const textarea = event.target;
+                      // After the textarea has grown with the new text.
+                      requestAnimationFrame(() => keepCaretInView(textarea));
                     }}
                     onSelect={event => trackMention(event.currentTarget, index)}
                     onFocus={() => setEditingPart(index)}
