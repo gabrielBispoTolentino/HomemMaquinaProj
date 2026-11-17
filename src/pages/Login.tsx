@@ -12,6 +12,8 @@ type LoginProps = {
 export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // "Manter conectado": off unless ticked, so a login on a shared device ends when the app closes.
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -30,7 +32,7 @@ export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginP
       setError("");
       setSuccess("");
 
-      const user = await signIn(email.trim(), password);
+      const user = await signIn(email.trim(), password, keepLoggedIn);
 
       setSuccess(`Login realizado com sucesso, ${user.name}!`);
       setEmail("");
@@ -90,6 +92,16 @@ export default function Login({ onGoToCadastro, onBack, onLoginSuccess }: LoginP
                   </label>
                   <PasswordInput id="login-password" value={password} onChange={setPassword} autoComplete="current-password" />
                 </div>
+
+                <label className="auth-page__keep" htmlFor="login-keep">
+                  <input
+                    id="login-keep"
+                    type="checkbox"
+                    checked={keepLoggedIn}
+                    onChange={event => setKeepLoggedIn(event.target.checked)}
+                  />
+                  Manter conectado neste aparelho
+                </label>
               </div>
 
               {error && (

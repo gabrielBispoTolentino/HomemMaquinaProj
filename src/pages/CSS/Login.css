@@ -240,3 +240,22 @@
     top: 1.5rem;
   }
 }
+
+/* "Manter conectado": the whole row is the touch target (44px tall for phones). */
+.auth-page__keep {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  font-size: 1rem;
+  color: #2f3d4a;
+  cursor: pointer;
+}
+
+.auth-page__keep input {
+  width: 1.2rem;
+  height: 1.2rem;
+  margin: 0;
+  accent-color: #2f3d4a;
+  cursor: pointer;
+}

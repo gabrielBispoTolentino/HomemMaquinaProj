@@ -18,13 +18,15 @@ import WorldNotes from "./pages/WorldNotes.tsx";
 
 export type Screen = "main" | "login" | "cadastro" | "sync" | "worlds" | "notes";
 
-// Where the back button leads from each screen; main has no parent.
+// Where the Android back button leads from each screen. Screens with no parent leave the app: main closes it, and
+// the logged-in screens (sync, worlds) only send it to the background, so back never logs the user out; logging
+// out is the on-screen button.
 const parentScreen: Record<Screen, Screen | null> = {
   main: null,
   login: "main",
   cadastro: "main",
-  sync: "main",
-  worlds: "main",
+  sync: null,
+  worlds: null,
   notes: "worlds",
 };
 
@@ -140,7 +142,7 @@ export function App() {
       setScreenNow(next);
     });
 
-  // Android hardware back button: go up one screen, or exit from the main screen.
+  // Android hardware back button: go up one screen; at the top, leave the app (without logging out).
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -154,6 +156,9 @@ export function App() {
         leaveWorld(() => setScreenNow("worlds"));
       } else if (parent) {
         goToScreen(parent);
+      } else if (currentUser) {
+        // Backgrounded rather than closed, so a login that wasn't kept ("Manter conectado") lasts while the app lives.
+        void CapacitorApp.minimizeApp();
       } else {
         CapacitorApp.exitApp();
       }
@@ -219,7 +224,7 @@ export function App() {
       return (
         <WorldList
           user={currentUser}
-          onBack={() => goToScreen("main")}
+          onLogout={() => goToScreen("main")}
           onOpenWorld={openWorld}
         />
       );

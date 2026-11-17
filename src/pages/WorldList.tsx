@@ -13,7 +13,7 @@ type LoggedUser = {
 
 type WorldListProps = {
   user: LoggedUser | null;
-  onBack: () => void;
+  onLogout: () => void;
   onOpenWorld: (world: WorldItem) => void;
 };
 
@@ -28,7 +28,7 @@ function syncLabel({ enabled, syncing, syncedAt, error }: SyncStatus) {
   return `Na nuvem · sincronizado ${today ? "às" : "em"} ${when}`;
 }
 
-export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps) {
+export default function WorldList({ user, onLogout, onOpenWorld }: WorldListProps) {
   const [worlds, setWorlds] = useState<WorldItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -74,6 +74,16 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
       .then(setWorlds)
       .catch(err => console.warn("Não foi possível recarregar os volumes.", err));
   }, [sync.pulls]);
+
+  // Logging out loses nothing (the volumes stay on the device), but it does mean typing the password again.
+  const logOut = async () => {
+    const confirmed = await confirmAction({
+      title: "Sair da conta?",
+      message: "Seus volumes continuam guardados neste aparelho. Para voltar a eles, entre de novo com seu email e senha.",
+      confirmLabel: "Sair",
+    });
+    if (confirmed) onLogout();
+  };
 
   const toggleSync = async () => {
     if (!user) return;
@@ -150,8 +160,8 @@ export default function WorldList({ user, onBack, onOpenWorld }: WorldListProps)
               Novo volume
             </button>
           )}
-          <button type="button" aria-label="Voltar" className="binder-icon-button" onClick={onBack}>
-            ←
+          <button type="button" className="binder-button" onClick={logOut}>
+            Sair
           </button>
         </div>
       </header>

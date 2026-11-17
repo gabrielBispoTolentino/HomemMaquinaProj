@@ -13,7 +13,8 @@ const CONFIRM_EMAIL = "Enviamos um link de confirmação para o seu email. Confi
 
 // The last user who logged in on this device, so the app opens already logged in. Their Supabase session is kept by
 // the Supabase client itself (persistSession in supabase.ts); this only spares a network round trip, so the app also
-// opens offline. Logging out forgets both.
+// opens offline. Only kept when the user ticks "Manter conectado" at login; otherwise the login lasts until the app
+// is closed. Logging out forgets both.
 const LAST_USER_KEY = "archivist.lastUser";
 
 type RememberedUser = { user: LoggedUser; authId: string };
@@ -48,7 +49,11 @@ function rememberedUser(): RememberedUser | null {
 // still counts, since the app works offline; one that's gone (logged out, or revoked) asks for the login again.
 export async function restoreUser(): Promise<LoggedUser | null> {
   const remembered = rememberedUser();
-  if (!remembered) return null;
+  if (!remembered) {
+    // A login that wasn't kept: drop the Supabase session it left behind, so it doesn't outlive the app.
+    await signOut();
+    return null;
+  }
   try {
     const { data, error } = await getSupabaseClient().auth.getSession();
     const session = data.session;
@@ -72,7 +77,7 @@ function isNetworkError(err: unknown) {
   return name === "AuthRetryableFetchError" || (typeof navigator !== "undefined" && navigator.onLine === false);
 }
 
-async function loadProfile(authId: string): Promise<LoggedUser> {
+async function loadProfile(authId: string, keepLoggedIn: boolean): Promise<LoggedUser> {
   const { data, error } = await getSupabaseClient()
     .from("user")
     .select("id, name, email")
@@ -80,21 +85,23 @@ async function loadProfile(authId: string): Promise<LoggedUser> {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Conta não encontrada.");
-  rememberUser(data, authId);
+  if (keepLoggedIn) rememberUser(data, authId);
+  else forgetUser();
   return data;
 }
 
-export async function signIn(email: string, password: string): Promise<LoggedUser> {
+// keepLoggedIn: the "Manter conectado" box at login. Without it the next start asks for the login again.
+export async function signIn(email: string, password: string, keepLoggedIn: boolean): Promise<LoggedUser> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (data.session) return loadProfile(data.session.user.id);
+  if (data.session) return loadProfile(data.session.user.id, keepLoggedIn);
   if (error?.code === "email_not_confirmed") throw new Error(CONFIRM_EMAIL);
   if (error?.code !== "invalid_credentials") throw error ?? new Error("Erro ao realizar login.");
 
   // Accounts made before Supabase Auth don't have an Auth account yet. Signing up with the same email and password
   // makes one and links it to the old account, but only if the password matches the old one (auth_sync.sql).
   const migrated = await supabase.auth.signUp({ email, password, options: { data: { migrate: true } } });
-  if (migrated.data.session) return loadProfile(migrated.data.session.user.id);
+  if (migrated.data.session) return loadProfile(migrated.data.session.user.id, keepLoggedIn);
   if (migrated.error?.code === "weak_password") {
     throw new Error("Não foi possível passar sua conta para o novo login: a senha tem menos de 6 caracteres.");
   }
