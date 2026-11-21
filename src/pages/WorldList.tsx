@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { openStudyDialog, participant, showStudyIntro } from "../lib/study";
 import { getSyncStatus, setSyncEnabled, subscribeSync, syncNow, type SyncStatus } from "../lib/sync";
 import { VOLUME_KINDS, type VolumeKind } from "../lib/volumeKinds";
 import { createWorld, loadWorlds, type WorldItem } from "../lib/worlds";
 import "./CSS/WorldList.css";
 import { confirmAction } from "./Dialogs.tsx";
+import { useStudy } from "./StudyDialogs.tsx";
 
 type LoggedUser = {
   id: number;
@@ -42,6 +44,12 @@ export default function WorldList({ user, onLogout, onOpenWorld }: WorldListProp
   const [sync, setSync] = useState(getSyncStatus);
 
   useEffect(() => subscribeSync(setSync), []);
+  useStudy();
+  const studyCode = user ? participant() : null;
+  // Testers are enrolled by default; the first time, a card says so (see setStudyUser).
+  useEffect(() => {
+    if (studyCode) showStudyIntro();
+  }, [studyCode]);
 
   useEffect(() => {
     if (!user) {
@@ -178,6 +186,21 @@ export default function WorldList({ user, onLogout, onOpenWorld }: WorldListProp
           )}
           <button type="button" className="world-list__sync-link" onClick={toggleSync}>
             {sync.enabled ? "Desativar" : "Ativar sincronização"}
+          </button>
+        </div>
+      )}
+
+      {user && (
+        <div className="world-list__sync world-list__study">
+          <span className="world-list__sync-state">
+            <span aria-hidden="true">◔</span> {studyCode ? `Estudo de usabilidade · participante ${studyCode}` : "Estudo de usabilidade"}
+          </span>
+          <button
+            type="button"
+            className="world-list__sync-link"
+            onClick={() => openStudyDialog({ kind: studyCode ? "panel" : "consent" })}
+          >
+            {studyCode ? "Abrir" : "Participar"}
           </button>
         </div>
       )}

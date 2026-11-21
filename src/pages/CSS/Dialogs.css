@@ -210,3 +210,18 @@
   cursor: not-allowed;
   opacity: 0.45;
 }
+
+/* The first volume's tour (VolumeTour): a confirmation card with its step count stamped on top. */
+.tour__step {
+  margin: 0 0 0.4rem;
+  font-family: var(--binder-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--binder-muted);
+}
+
+.tour__page {
+  animation: fade-in var(--motion) ease-out;
+}

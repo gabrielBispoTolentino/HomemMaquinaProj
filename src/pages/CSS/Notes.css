@@ -281,11 +281,35 @@
   animation: page-in var(--motion-slow) var(--ease-settle);
 }
 
-/* With no note open, the button that shows the sidebar again sits alone in the corner. */
+/* With nothing open: a quiet line in the middle saying where to start, and the button that shows the sidebar
+   again in the corner. */
 .volume__blank {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.volume__blank > .volume__show {
   position: absolute;
   top: 1rem;
   left: 1rem;
+}
+
+.volume__blank-text {
+  max-width: 22rem;
+  margin: 0;
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--binder-on-slate-muted);
+}
+
+/* "Nenhum verbete encontrado", with the button that clears the search under it. */
+.volume__status-text {
+  margin: 0 0 0.5rem;
 }
 
 /* The listing: subgroups are collapsible, nestable folders; notes are rows. */
@@ -1770,4 +1794,97 @@ body.is-dragging * {
   .reference-card__remove {
     min-height: 44px;
   }
+}
+
+/* The markers bar above the note's text (MARKERS in NoteEditor): quiet while nothing is being written, and never
+   wider than the note: on a narrow screen it scrolls sideways on its own. */
+.marker-bar {
+  flex: none;
+  display: flex;
+  gap: 0.3rem;
+  margin: 0 0 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  transition: opacity var(--motion) var(--ease-settle);
+}
+
+.marker-bar--idle {
+  opacity: 0.55;
+}
+
+.marker-bar__button {
+  flex: none;
+  border: 1.5px dashed #c4cfd7;
+  border-radius: 8px;
+  padding: 0.25rem 0.6rem;
+  background: transparent;
+  color: var(--binder-muted);
+  font-family: var(--binder-display);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--motion-quick) var(--ease-settle),
+    background-color var(--motion) var(--ease-settle);
+}
+
+.marker-bar__button:hover {
+  background: var(--binder-paper-shade);
+}
+
+.marker-bar__button:active {
+  transform: scale(0.95);
+}
+
+.marker-bar__button:focus-visible {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .marker-bar__button {
+    min-height: 44px;
+  }
+}
+
+/* The one-time tip at the top of the first note opened: an index card clipped to the page. */
+.note-tip {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.85rem;
+  border-left: 4px solid var(--world);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  background: var(--binder-paper-shade);
+  animation: fade-in var(--motion) ease-out;
+}
+
+.note-tip__text {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.note-tip__close {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 1rem;
+  background: var(--binder-ink);
+  color: var(--binder-paper);
+  font-family: var(--binder-display);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note-tip__close:focus-visible {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 2px;
 }

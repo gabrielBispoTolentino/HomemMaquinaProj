@@ -1,0 +1,419 @@
+@import "./Binder.css";
+
+/* The usability study's cards (StudyDialogs): confirmation cards that can be taller than the screen and scroll. */
+.study-backdrop {
+  z-index: 110;
+  overflow-y: auto;
+}
+
+.study {
+  max-height: calc(100dvh - 2rem);
+  display: flex;
+  flex-direction: column;
+  border-top-color: #5b7f6e;
+}
+
+.study--wide {
+  width: min(100%, 34rem);
+}
+
+.study__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -0.25rem;
+  padding: 0 0.25rem;
+  overscroll-behavior: contain;
+}
+
+.study .dialog__actions {
+  flex: none;
+  margin-top: 1rem;
+}
+
+.study__list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #34434f;
+}
+
+.study__list li + li {
+  margin-top: 0.4rem;
+}
+
+.study__hint {
+  color: var(--binder-muted);
+  font-size: 0.85rem;
+}
+
+.study__check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  margin-top: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.study__check input {
+  width: 1.3rem;
+  height: 1.3rem;
+  accent-color: var(--binder-slate);
+}
+
+.study__code {
+  font-family: var(--binder-display);
+  letter-spacing: 0.05em;
+}
+
+/* The panel's actions: a column of slips. */
+.study__panel-actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.study__action {
+  min-height: 44px;
+  border: 1.5px solid #c3ced6;
+  border-radius: 12px;
+  padding: 0.5rem 0.9rem;
+  background: #fff;
+  color: var(--binder-ink);
+  font-family: var(--binder-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.study__action--primary {
+  border-color: var(--binder-slate);
+  background: var(--binder-slate);
+  color: var(--binder-on-slate);
+}
+
+.study__action--primary:hover:not(:disabled) {
+  background: var(--binder-slate-deep);
+}
+
+.study__action:hover:not(:disabled) {
+  border-color: var(--binder-slate);
+}
+
+.study__action:focus-visible {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 2px;
+}
+
+.study__action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.study__panel-footer {
+  justify-content: space-between;
+}
+
+.study__quiet {
+  background: transparent;
+  font-size: 1rem;
+  color: #34434f;
+}
+
+/* Questions */
+.study__question {
+  margin-top: 1.1rem;
+}
+
+.study__question:first-child {
+  margin-top: 0.8rem;
+}
+
+.study__label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  font-family: var(--binder-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--binder-ink);
+}
+
+.study__number {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--binder-slate);
+  color: var(--binder-on-slate);
+  font-size: 0.9rem;
+}
+
+.study__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.study__suggestion {
+  min-height: 36px;
+  border: 1px dashed #9aa9b4;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  background: transparent;
+  color: #34434f;
+  font-family: var(--binder-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.study__suggestion[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--binder-slate);
+  background: rgba(31, 43, 53, 0.08);
+}
+
+.study__suggestion:focus-visible {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 1px;
+}
+
+/* Single-choice chips: the radio is hidden, its label is the button. */
+.study__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* A numbered scale stays on one line, its places sharing the width. */
+.study__chips--scale {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.study__chips--scale .study__chip span {
+  min-width: 0;
+  padding: 0.35rem 0;
+}
+
+.study__wide-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.study__chip {
+  position: relative;
+  flex: 1 0 auto;
+  display: flex;
+}
+
+.study__chip input,
+.sam__point input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.study__chip span {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1.5px solid #c3ced6;
+  border-radius: 10px;
+  padding: 0.35rem 0.7rem;
+  background: #fff;
+  font-family: var(--binder-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: center;
+  transition:
+    background-color var(--motion-quick) var(--ease-settle),
+    border-color var(--motion-quick) var(--ease-settle),
+    transform var(--motion-quick) var(--ease-settle);
+}
+
+.study__chip input:checked + span {
+  border-color: var(--binder-slate);
+  background: var(--binder-slate);
+  color: var(--binder-on-slate);
+}
+
+.study__chip input:focus-visible + span {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 2px;
+}
+
+.study__chip input:active + span {
+  transform: scale(0.95);
+}
+
+.study__ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--binder-muted);
+}
+
+.study__ends span:last-child {
+  text-align: right;
+}
+
+.study__comment {
+  position: relative;
+}
+
+.study__comment textarea {
+  resize: vertical;
+  min-height: 3.5rem;
+}
+
+.study__counter {
+  align-self: flex-end;
+  font-size: 0.75rem;
+  color: var(--binder-muted);
+}
+
+/* SAM: a row of five figures with a dot between each pair, nine places to touch in all. */
+.study__intro {
+  font-size: 0.95rem;
+}
+
+.sam {
+  margin: 1.1rem 0 0;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.sam__row {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  align-items: stretch;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.25rem 0;
+}
+
+.sam__point {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  border-radius: 10px;
+  color: var(--binder-ink);
+  transition:
+    background-color var(--motion-quick) var(--ease-settle),
+    transform var(--motion-quick) var(--ease-settle);
+}
+
+.sam__point:hover {
+  background: rgba(31, 43, 53, 0.06);
+}
+
+.sam__point:has(input:checked) {
+  background: #cfe0d6;
+  box-shadow: inset 0 0 0 2.5px var(--binder-slate);
+}
+
+.sam__point:has(input:focus-visible) {
+  outline: 3px solid var(--binder-slate);
+  outline-offset: 1px;
+}
+
+.sam__point:active {
+  transform: scale(0.94);
+}
+
+.sam__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.sam__point:has(input:checked) .sam__dot {
+  background: currentColor;
+}
+
+.manikin {
+  width: 100%;
+  max-width: 3rem;
+  height: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.manikin__fill-paper {
+  fill: var(--binder-paper);
+}
+
+.manikin__fill-ink {
+  fill: currentColor;
+  stroke: none;
+}
+
+.manikin__lines {
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.manikin__motion {
+  stroke-width: 1.4;
+}
+
+.manikin__cheek {
+  fill: #e48b7f;
+  stroke: none;
+  opacity: 0.7;
+}
+
+.sam__point:has(input:checked) .manikin__fill-paper {
+  fill: #fff;
+}
+
+/* Phones: the card takes the width, so the nine places stay as wide as they can (about 38px at 390px, and 64px tall). */
+@media (max-width: 480px) {
+  .study-backdrop {
+    padding: 0.5rem;
+  }
+
+  .study {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem 0.75rem 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study__chip span,
+  .sam__point {
+    transition: none;
+  }
+
+  .study__chip input:active + span,
+  .sam__point:active {
+    transform: none;
+  }
+}

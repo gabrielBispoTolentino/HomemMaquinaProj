@@ -307,7 +307,7 @@ export default function ManuscriptView(props: ManuscriptViewProps) {
 
       <div className="manuscript">
         <h1 className="manuscript__title">{title}</h1>
-        {sections.length === 0 && <p className="manuscript__empty">Ainda não há verbetes aqui.</p>}
+        {sections.length === 0 && <p className="manuscript__empty">Ainda não há verbetes aqui. Os verbetes deste subgrupo aparecem nesta página como um texto contínuo, na ordem da lista.</p>}
         {sections.map(section => {
           const Heading = `h${headingLevel(section.depth)}` as "h2";
           if (section.kind === "heading") {

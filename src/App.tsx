@@ -6,11 +6,13 @@ import "./index.css";
 import "./pages/CSS/Motion.css";
 import { restoreUser, signOut, type LoggedUser } from "./lib/auth";
 import { endSyncSession, setSyncEnabled, startSyncSession } from "./lib/sync";
+import { setStudyUser } from "./lib/study";
 import { checkForUpdates } from "./lib/updates";
 import Cadastrar from "./pages/Cadastrar.tsx";
 import { closeOpenDialog, DialogHost } from "./pages/Dialogs.tsx";
 import Login from "./pages/Login.tsx";
 import MainPen from "./pages/MainPen.tsx";
+import { closeStudyDialogAsCancel, StudyHost } from "./pages/StudyDialogs.tsx";
 import SyncChoice from "./pages/SyncChoice.tsx";
 import { loadWorlds, type WorldItem } from "./lib/worlds";
 import WorldList from "./pages/WorldList.tsx";
@@ -81,6 +83,11 @@ export function App() {
     setScreen(choice === null ? "sync" : "worlds");
   };
 
+  // The usability study (opt-in) is per user on this device.
+  useEffect(() => {
+    setStudyUser(currentUser?.id ?? null);
+  }, [currentUser]);
+
   // A newer release, if there is one, is offered once per launch (see updates.ts).
   useEffect(() => {
     void checkForUpdates();
@@ -149,6 +156,7 @@ export function App() {
     const listener = CapacitorApp.addListener("backButton", () => {
       // An open confirmation is closed first, as a cancel.
       if (closeOpenDialog()) return;
+      if (closeStudyDialogAsCancel()) return;
       if (screen === "notes" && volumeBack.current?.()) return;
 
       const parent = parentScreen[screen];
@@ -172,6 +180,7 @@ export function App() {
   return (
     <>
       {!restoring && renderScreen()}
+      <StudyHost />
       <DialogHost />
     </>
   );

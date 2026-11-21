@@ -14,6 +14,7 @@ import { endPosition } from "../lib/order";
 import { subgroupPaths, type SubgroupItem } from "../lib/subgroups";
 import { countWords, formatWords, NOTE_STATUSES } from "../lib/writing";
 import type { WorldItem } from "../lib/worlds";
+import { markSeen, seen } from "../lib/prefs";
 import { notify } from "./Dialogs.tsx";
 import GadgetMenu, { type MenuItem } from "./GadgetMenu.tsx";
 import ImageBlock from "./ImageBlock.tsx";
@@ -59,6 +60,21 @@ const INLINE_INSERTS = [
   { id: "cite", feature: "citations", label: "Citar fonte", text: "[@]", caret: 2 },
   { id: "footnote", feature: "footnotes", label: "Nota de rodapé", text: "[nota][/nota]", caret: 6 },
 ] as const;
+
+// The markers bar, shown above the text while it's being written: each button puts its marker around what's selected,
+// or at the caret with the caret inside, so nobody has to remember the brackets. Mention and citation then open
+// their suggestions as if typed.
+const MARKERS = [
+  { id: "mention", feature: "mentions", label: "[[ ]] Mencionar", hint: "Mencionar outro verbete", before: "[[", after: "]]" },
+  { id: "cite", feature: "citations", label: "[@] Citar", hint: "Citar uma fonte", before: "[@", after: "]" },
+  { id: "footnote", feature: "footnotes", label: "Nota de rodapé", hint: "Nota de rodapé", before: "[nota]", after: "[/nota]" },
+  { id: "secret", feature: "secrets", label: "Segredo", hint: "Trecho que os jogadores não veem", before: "[segredo]", after: "[/segredo]" },
+] as const;
+
+// Whether the screen has no hover (a phone or tablet), where the note's menu is "+ Inserir" instead of a right click.
+function touchScreen() {
+  return window.matchMedia("(hover: none)").matches;
+}
 
 const AUTOSAVE_DELAY_MS = 800;
 
@@ -156,6 +172,8 @@ export default function NoteEditor(props: NoteEditorProps) {
   const [images, setImages] = useState(new Map<string, NoteImage>());
   const [lookedUp, setLookedUp] = useState(new Set<string>());
   const [showVersions, setShowVersions] = useState(false);
+  // The one-time tip about the note's menu and the markers bar, until it's dismissed (see prefs.ts).
+  const [showTip, setShowTip] = useState(() => !seen("noteTip"));
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -568,6 +586,48 @@ export default function NoteEditor(props: NoteEditorProps) {
     if (textarea) trackMention(textarea, index);
   };
 
+  const markers = MARKERS.filter(marker => on(marker.feature));
+
+  // A marker put around the selection in the piece of text being written, or at the caret with the caret inside.
+  // Pressed while nothing is being written, it goes at the end of the text.
+  const insertMarker = (marker: (typeof MARKERS)[number]) => {
+    let index = editingPart;
+    if (index === null || parts[index]?.kind !== "text") {
+      index = parts.length - 1;
+      while (index > 0 && parts[index]?.kind !== "text") index--;
+      editContent(index);
+    }
+    const textarea = textRefs.current.get(index);
+    const piece = parts[index];
+    if (!textarea || piece?.kind !== "text") return;
+    const { selectionStart: start, selectionEnd: end } = textarea;
+    const selected = piece.text.slice(start, end);
+    // A citation isn't stuck to the word before it.
+    const space = marker.id === "cite" && start > 0 && !/\s/.test(piece.text[start - 1]!) ? " " : "";
+    const next = piece.text.slice(0, start) + space + marker.before + selected + marker.after + piece.text.slice(end);
+    const caret = start + space.length + marker.before.length + (selected ? selected.length + marker.after.length : 0);
+    flushSync(() => setPart(index, { kind: "text", text: next }));
+    textarea.focus({ preventScroll: true });
+    textarea.setSelectionRange(caret, caret);
+    trackMention(textarea, index);
+  };
+
+  const dismissTip = () => {
+    markSeen("noteTip");
+    setShowTip(false);
+  };
+
+  // What the tip mentions: only what this volume has on.
+  const menuNames = menuItems.map(item => item.label.toLowerCase());
+  const tipMenu = menuNames.length
+    ? touchScreen()
+      ? `Toque em “+ Inserir”, no alto do verbete, para pôr ${menuNames.join(", ")}.`
+      : `Clique com o botão direito no texto para pôr ${menuNames.join(", ")} ali.`
+    : "";
+  const tipMarkers = markers.length
+    ? `Enquanto você escreve, a barra acima do texto põe ${markers.map(marker => marker.hint.toLowerCase()).join(", ")} sem precisar digitar os colchetes.`
+    : "";
+
   const pickFromMenu = (id: string, menu: { spot: Spot; caret: Spot }) => {
     const insert = INLINE_INSERTS.find(item => item.id === id);
     if (insert) return insertInline(insert, menu.caret);
@@ -860,6 +920,39 @@ export default function NoteEditor(props: NoteEditorProps) {
             aria-label="Resumo"
             maxLength={300}
           />
+        )}
+        {showTip && (tipMenu || tipMarkers) && (
+          <aside className="note-tip" aria-label="Dica">
+            <p className="note-tip__text">
+              <strong>Dica:</strong> {tipMenu} {tipMarkers}
+            </p>
+            <button type="button" className="note-tip__close" onClick={dismissTip}>
+              Entendi
+            </button>
+          </aside>
+        )}
+        {/* Always in place, so the text doesn't jump when writing starts; quieter while nothing is being written. A
+            press on a button doesn't take the focus (or the selection) away from the text, so the keyboard stays
+            open on phones. */}
+        {markers.length > 0 && (
+          <div
+            className={`marker-bar${editingPart === null ? " marker-bar--idle" : ""}`}
+            role="toolbar"
+            aria-label="Marcações"
+          >
+            {markers.map(marker => (
+              <button
+                key={marker.id}
+                type="button"
+                className="marker-bar__button"
+                title={marker.hint}
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => insertMarker(marker)}
+              >
+                {marker.label}
+              </button>
+            ))}
+          </div>
         )}
         <div className={`note-editor__body${blocks ? " note-editor__body--blocks" : ""}`}>
           {parts.map((part, index) => {

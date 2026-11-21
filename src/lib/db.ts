@@ -164,6 +164,20 @@ const SCHEMA = `
     last_rev INTEGER NOT NULL DEFAULT 0,
     synced_at TEXT
   );
+
+  -- Answers to the usability study's questionnaires (ESM and SAM, see study.ts), only for testers who agreed to take
+  -- part. Never synced: they leave the device only when the tester exports them. Answers and context are JSON.
+  CREATE TABLE IF NOT EXISTS study_responses (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    participant TEXT NOT NULL,
+    method TEXT NOT NULL,
+    moment TEXT NOT NULL,
+    answers TEXT NOT NULL,
+    context TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS study_responses_user_idx ON study_responses (user_id, created_at);
 `;
 
 // The tables sync.ts copies to the cloud, parents before children, with the SQL naming a row in them (`row` is the

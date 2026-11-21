@@ -1,3 +1,4 @@
+import { participant } from "../lib/study";
 import type { ReactNode } from "react";
 import { featureOn, type FeatureId } from "../lib/features";
 import { GADGETS } from "../lib/gadgets";
@@ -19,6 +20,13 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
   // What the note's right-click menu offers: a citation or a footnote where it was clicked, and gadgets under that line.
   const atCaret = [on("citations") && "citar fonte", on("footnotes") && "nota de rodapé"].filter(Boolean);
   const gadgets = GADGETS.filter(gadget => on(gadget.feature)).map(gadget => gadget.label.toLowerCase());
+  // The buttons of the markers bar above the note's text (MARKERS in NoteEditor).
+  const markers = [
+    on("mentions") && "Mencionar",
+    on("citations") && "Citar",
+    on("footnotes") && "Nota de rodapé",
+    on("secrets") && "Segredo",
+  ].filter(Boolean);
 
   return (
     <article className="world-view">
@@ -88,6 +96,12 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
                 trechos ficam de fora da versão dos jogadores do manuscrito.
               </li>
             )}
+            {markers.length > 0 && (
+              <li>
+                A <strong>barra acima do texto</strong> ({markers.join(", ")}) põe as marcações por você: em volta do
+                trecho selecionado ou onde está o cursor. Não precisa decorar os colchetes.
+              </li>
+            )}
             {on("versions") && <li>Em “Versões”, guarde uma cópia do texto, compare com o atual e volte a ela.</li>}
             {(gadgets.length > 0 || atCaret.length > 0) && (
               <li>
@@ -147,6 +161,23 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
             <li>Nada sai do aparelho sem você ligar a sincronização, na lista de volumes.</li>
           </ul>
         </section>
+
+        {participant() !== null && (
+          <section className="help__section">
+            <h3 className="settings__group-title">Estudo de usabilidade</h3>
+            <ul className="help__list">
+              <li>
+                De vez em quando, numa pausa, aparecem quatro perguntas rápidas sobre o que você estava fazendo. Dá para
+                responder “Agora não”, ou contar a qualquer momento em “◔ Como foi?”, no alto da lista.
+              </li>
+              <li>
+                Antes e depois das tarefas, marque como se sente em “Estudo de usabilidade”, na lista de volumes. Lá
+                também ficam o seu código, a exportação das respostas e a saída do estudo.
+              </li>
+              <li>Só as respostas são guardadas, neste aparelho; nada do que você escreve.</li>
+            </ul>
+          </section>
+        )}
 
         <section className="help__section">
           <h3 className="settings__group-title">No celular</h3>

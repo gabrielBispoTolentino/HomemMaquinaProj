@@ -20,6 +20,7 @@ import {
 import { loadWritingStats, NOTE_STATUSES, setDailyGoal, type WritingStats } from "../lib/writing";
 import { templatesFor, type NoteTemplate } from "../lib/volumeKinds";
 import { markSeen, seen } from "../lib/prefs";
+import { isStudyDialogOpen, openStudyDialog, participant, showStudyIntro, studyCheckpoint } from "../lib/study";
 import {
   deleteWorld,
   setWorldFeatures,
@@ -43,10 +44,12 @@ import RelationshipMap from "./RelationshipMap.tsx";
 import TimelineView from "./TimelineView.tsx";
 import TrashView from "./TrashView.tsx";
 import VolumeSettings from "./VolumeSettings.tsx";
+import VolumeTour from "./VolumeTour.tsx";
 import { useDragDrop, type DragSource } from "./useDragDrop.tsx";
 import WritingGoal from "./WritingGoal.tsx";
 import "./CSS/Notes.css";
 import { confirmAction, isDialogOpen, notify } from "./Dialogs.tsx";
+import { useStudy } from "./StudyDialogs.tsx";
 
 // What the middle pane shows: a note (id is null for a new note until its first save, and preset holds a
 // template's starting text), a subgroup (null for the whole volume) read as a manuscript or pinned up on the
@@ -173,6 +176,8 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   // Goes up whenever a note enters or leaves the Lixeira from elsewhere, so an open Lixeira reloads.
   const [trashChanges, setTrashChanges] = useState(0);
   const [landed, setLanded] = useState<Landed>(null);
+  // The tour of the archive's words, shown over the first volume opened on this device (see VolumeTour).
+  const [touring, setTouring] = useState(() => !seen("volumeTour"));
   // The listing as last drawn, for telling a new note's first save apart from later ones.
   const notesRef = useRef(notes);
   notesRef.current = notes;
@@ -289,10 +294,32 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
     });
   }, [view, loading]);
 
+  // The usability study (opt-in, see study.ts): leaving a note is a natural pause, where an ESM may be offered, and
+  // so is leaving the volume.
+  useStudy();
+  const inStudy = participant() !== null;
+  const studyContext = () => ({ volumeKind: world.kind ?? null, view: view?.kind ?? null });
+  // A tester enrolled by default who reopened straight into a volume sees the study's card here, after the tour.
+  useEffect(() => {
+    if (inStudy && !touring) showStudyIntro();
+  }, [inStudy, touring]);
+  const lastNoteKey = useRef<number | null>(null);
+  useEffect(() => {
+    const leftNote = lastNoteKey.current !== null && !(view?.kind === "note" && view.key === lastNoteKey.current);
+    lastNoteKey.current = view?.kind === "note" && view.id !== null ? view.key : null;
+    if (leftNote && !touring) studyCheckpoint({ volumeKind: world.kind ?? null, view: "note" }, isDialogOpen());
+  }, [view]);
+  useEffect(() => () => studyCheckpoint({ volumeKind: world.kind ?? null, view: "volume" }, isDialogOpen()), []);
+
+  const endTour = () => {
+    markSeen("volumeTour");
+    setTouring(false);
+  };
+
   // Keyboard shortcuts, listed in the volume's Ajuda.
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (isDialogOpen() || event.repeat) return;
+      if (isDialogOpen() || isStudyDialogOpen() || touring || event.repeat) return;
       const mod = event.ctrlKey || event.metaKey;
       if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -325,6 +352,10 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
 
   useEffect(() => {
     backHandler.current = () => {
+      if (touring) {
+        endTour();
+        return true;
+      }
       if (isNarrow() && !sidebarHidden) {
         setSidebarHidden(true);
         return true;
@@ -783,6 +814,12 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
   ].filter(Boolean);
   const emptyFilterText = `Nenhum verbete encontrado ${filterParts.join(" ")}.`;
 
+  const clearFilters = () => {
+    setQuery("");
+    setCategoryId(null);
+    setStatusFilter("");
+  };
+
   const openNoteItem = openNote?.id ? notes.find(note => note.id === openNote.id) ?? null : null;
 
   const showSidebarButton: ReactNode = sidebarHidden && (
@@ -853,6 +890,16 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
               >
                 Lixeira
               </button>
+              {inStudy && (
+                <button
+                  type="button"
+                  className="volume__view-button volume__view-button--settings"
+                  onClick={() => openStudyDialog({ kind: "esm", trigger: "manual", context: studyContext() })}
+                  title="Estudo de usabilidade: contar como foi agora"
+                >
+                  ◔ Como foi?
+                </button>
+              )}
             </div>
           </div>
           <button
@@ -970,11 +1017,18 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
             <>
               {notes.length === 0 && subgroups.length === 0 && addingIn === undefined && (
                 <p className="volume__status">
-                  Este volume ainda está vazio. Comece um verbete ou crie subgrupos para organizar o volume. Em
-                  dúvida, use o botão ? para ver a ajuda.
+                  Este volume ainda está vazio. Use “+ Verbete”, aqui embaixo, para escrever o primeiro, ou
+                  “+ Subgrupo” para criar divisórias. Em dúvida, o botão ? explica tudo.
                 </p>
               )}
-              {filtering && visibleNotes.length === 0 && <p className="volume__status">{emptyFilterText}</p>}
+              {filtering && visibleNotes.length === 0 && (
+                <div className="volume__status">
+                  <p className="volume__status-text">{emptyFilterText}</p>
+                  <button type="button" className="category-chip" onClick={clearFilters}>
+                    Limpar busca e filtros
+                  </button>
+                </div>
+              )}
               <NoteTree
                 notes={visibleNotes}
                 subgroups={subgroups}
@@ -1052,10 +1106,15 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
         </footer>
       </aside>
 
-      {/* Blank until something is opened. */}
+      {/* Nothing open: a quiet line saying where to start (on phones the listing covers it anyway). */}
       <section className="volume__main">
-        {loading || !view ? (
-          showSidebarButton && <div className="volume__blank">{showSidebarButton}</div>
+        {loading ? null : !view ? (
+          <div className="volume__blank">
+            {showSidebarButton}
+            <p className="volume__blank-text">
+              {notes.length ? "Abra um verbete na lista, ou crie um com “+ Verbete”." : "Crie o primeiro verbete com “+ Verbete”, embaixo da lista."}
+            </p>
+          </div>
         ) : view.kind === "note" ? (
           <NoteEditor
             key={view.key}
@@ -1162,6 +1221,7 @@ export default function WorldNotes({ world: initialWorld, onBack, onDeleted, bac
 
       {treeDrag.ghost}
       {boardDrag.ghost}
+      {touring && !loading && !error && <VolumeTour onClose={endTour} />}
     </main>
   );
 }
