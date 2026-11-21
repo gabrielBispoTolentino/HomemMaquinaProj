@@ -1,22 +1,22 @@
 import { Capacitor } from "@capacitor/core";
 import pkg from "../../package.json";
-import { newId, now, queryAll, queryOne, run } from "./db";
+import { newId, now, queryAll, queryOne, run, runBatch } from "./db";
+import { getSupabaseClient } from "./supabase";
 
-// The usability study's in-app questionnaires, for testers who agreed to take part (opt-in, per user and device):
+// The usability study's in-app questionnaires. Every user takes part by default, with a card that says so and a way
+// out (see setStudyUser):
 // - ESM (Experience Sampling): four quick questions about what the tester was just doing, asked now and then at a
 //   natural pause (leaving a note, leaving a volume; see studyCheckpoint), or whenever the tester opens it.
 // - SAM (Self-Assessment Manikin): valence, arousal and dominance on 9-point picture scales, before and after the
 //   study's tasks.
-// Answers stay in the local database and leave the device only when the tester sends them by email (to STUDY_EMAIL)
-// or exports them.
+// Answers are kept in the local database and sent on their own, in the background, to the study's Supabase table
+// (sendPendingStudyResponses); one not sent yet (offline, logged out) goes at the next chance. They can also be
+// exported as CSV.
 // Nothing written in the notes is ever recorded: only the answers, the time, the app version, the platform, the
 // kind of volume and the screen the tester was on. The export carries the participant code, never the account.
 
 export const APP_VERSION: string = pkg.version;
 
-// Where the answers are sent: the person running the study. The tester's own email app sends them (see
-// emailStudyResponses), so no server or key is involved and the tester sees what goes out.
-export const STUDY_EMAIL = "tolentinocrb@gmail.com";
 
 export type EsmEase = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type EsmDone = "sim" | "parcial" | "nao";
@@ -110,6 +110,8 @@ export function setStudyUser(id: number | null) {
     writeEnrolment({ participant: randomCode(), consentedAt: at, lastPromptAt: at, promptDay: localDay(), promptsToday: 0, introSeen: false });
   }
   changed();
+  // Answers left unsent at the last session go now.
+  void sendPendingStudyResponses();
 }
 
 const OPT_OUT_KEY = (id: number) => `archivist.study.optOut.${id}`;
@@ -243,15 +245,20 @@ async function save(method: "esm" | "sam", moment: string, answers: EsmAnswers |
     ],
   );
   changed();
+  void sendPendingStudyResponses();
 }
 
 export const saveEsm = (trigger: EsmTrigger, answers: EsmAnswers, context: StudyContext) => save("esm", trigger, answers, context);
 export const saveSam = (moment: SamMoment, answers: SamAnswers, context: StudyContext) => save("sam", moment, answers, context);
 
+// How many answers this user has on this device, and how many of them are still waiting to be sent.
 export async function countStudyResponses() {
-  if (userId === null) return 0;
-  const row = await queryOne<{ n: number }>("SELECT count(*) AS n FROM study_responses WHERE user_id = ?", [userId]);
-  return Number(row?.n ?? 0);
+  if (userId === null) return { total: 0, pending: 0 };
+  const row = await queryOne<{ total: number; pending: number }>(
+    "SELECT count(*) AS total, count(*) - count(sent_at) AS pending FROM study_responses WHERE user_id = ?",
+    [userId],
+  );
+  return { total: Number(row?.total ?? 0), pending: Number(row?.pending ?? 0) };
 }
 
 export async function deleteStudyResponses() {
@@ -321,28 +328,54 @@ export async function exportStudyCsv() {
   return [CSV_COLUMNS.join(","), ...lines].join("\r\n") + "\r\n";
 }
 
-// Some mail apps (Windows' especially) cut a mailto: link short past about 2000 characters, so a longer set of
-// answers goes in through the clipboard instead, with the message asking the tester to paste it.
-const MAILTO_BODY_MAX = 1800;
+// Sending: each answer goes to public.study_responses in Supabase (supabase/study_responses.sql), where logged-in
+// users can add rows but nobody can read them back through the app; the researcher reads them in the dashboard.
+// A row carries the participant code, never the account. The local row gets sent_at once Supabase has it; the
+// answer's own id makes a resend after a lost reply harmless (duplicates are ignored). Only while enrolled: leaving
+// the study stops sending what's left.
+const SEND_CHUNK = 50;
+let sending = false;
 
-// Opens the tester's email app with a message to STUDY_EMAIL carrying the answers as CSV; the tester checks it and
-// sends it. The answers are also copied, in case the message comes out empty. Says whether they had to be pasted.
-export async function emailStudyResponses(): Promise<{ pasted: boolean }> {
-  const code = participant() ?? "sem código";
-  const csv = await exportStudyCsv();
-  let copied = false;
+export async function sendPendingStudyResponses() {
+  if (sending || userId === null || !readEnrolment()) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  sending = true;
+  const id = userId;
   try {
-    await navigator.clipboard.writeText(csv);
-    copied = true;
-  } catch {
-    // Only a fallback; the message may still carry the answers itself.
+    const supabase = getSupabaseClient();
+    for (;;) {
+      const rows = await queryAll<ResponseRow>(
+        `SELECT id, participant, method, moment, answers, context, created_at FROM study_responses
+         WHERE user_id = ? AND sent_at IS NULL ORDER BY created_at LIMIT ${SEND_CHUNK}`,
+        [id],
+      );
+      if (!rows.length) break;
+      const { error } = await supabase.from("study_responses").upsert(
+        rows.map(row => ({
+          id: row.id,
+          participant: row.participant,
+          method: row.method,
+          moment: row.moment,
+          answers: JSON.parse(row.answers) as Record<string, unknown>,
+          context: JSON.parse(row.context) as Record<string, unknown>,
+          created_at: row.created_at,
+        })),
+        { onConflict: "id", ignoreDuplicates: true },
+      );
+      if (error) throw error;
+      const at = now();
+      await runBatch(rows.map(row => ({ sql: "UPDATE study_responses SET sent_at = ? WHERE id = ?", params: [at, row.id] })));
+      if (rows.length < SEND_CHUNK || userId !== id) break;
+    }
+  } catch (err) {
+    // Tried again with the next answer, the next login, or when the device is back online.
+    console.warn("Não foi possível enviar as respostas do estudo agora.", err);
+  } finally {
+    sending = false;
+    changed();
   }
-  const intro = `Respostas do estudo de usabilidade do Archivist.\nParticipante: ${code}\nVersão: ${APP_VERSION}\n\n`;
-  const inline = encodeURIComponent(intro + csv).length <= MAILTO_BODY_MAX;
-  const body = inline
-    ? intro + csv
-    : intro + (copied ? "As respostas foram copiadas: cole-as aqui (segure e toque em Colar, ou Ctrl+V) antes de enviar.\n" : "");
-  const subject = `Archivist: respostas do estudo (${code}, v${APP_VERSION})`;
-  window.location.href = `mailto:${STUDY_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  return { pasted: !inline };
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => void sendPendingStudyResponses());
 }

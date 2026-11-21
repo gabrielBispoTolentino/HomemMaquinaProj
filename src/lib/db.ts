@@ -165,8 +165,9 @@ const SCHEMA = `
     synced_at TEXT
   );
 
-  -- Answers to the usability study's questionnaires (ESM and SAM, see study.ts), only for testers who agreed to take
-  -- part. Never synced: they leave the device only when the tester exports them. Answers and context are JSON.
+  -- Answers to the usability study's questionnaires (ESM and SAM, see study.ts), from the testers taking
+  -- part. Not in the volumes' sync: study.ts sends them on their own to the study's table and marks sent_at.
+  -- Answers and context are JSON.
   CREATE TABLE IF NOT EXISTS study_responses (
     id TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL,
@@ -175,7 +176,8 @@ const SCHEMA = `
     moment TEXT NOT NULL,
     answers TEXT NOT NULL,
     context TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    sent_at TEXT
   );
   CREATE INDEX IF NOT EXISTS study_responses_user_idx ON study_responses (user_id, created_at);
 `;
@@ -242,6 +244,7 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string; fill?:
   { table: "notes", column: "timeline", definition: "TEXT NOT NULL DEFAULT ''" },
   { table: "notes", column: "deleted_at", definition: "TEXT" },
   { table: "notes", column: "reference", definition: "TEXT" },
+  { table: "study_responses", column: "sent_at", definition: "TEXT" },
 ];
 
 // Indexes on added columns, created once the columns exist.

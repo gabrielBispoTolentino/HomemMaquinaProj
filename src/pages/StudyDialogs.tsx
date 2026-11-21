@@ -6,8 +6,7 @@ import {
   confirmStudyIntro,
   countStudyResponses,
   deleteStudyResponses,
-  emailStudyResponses,
-  STUDY_EMAIL,
+  sendPendingStudyResponses,
   ESM_ACTIVITY_MAX,
   ESM_COMMENT_MAX,
   exportStudyCsv,
@@ -123,9 +122,9 @@ function StudyTerms() {
         volume e a tela em que você estava. Nunca o que você escreve, nem seu nome ou email.
       </li>
       <li>
-        <strong>Onde:</strong> só neste aparelho, mesmo com a sincronização ligada. As respostas saem daqui quando
-        você toca em “Enviar por email”: seu app de email abre uma mensagem para quem conduz o estudo ({STUDY_EMAIL}),
-        e você confere e envia. A mensagem sai do seu endereço de email.
+        <strong>Para onde vão:</strong> as respostas são enviadas sozinhas, pela internet, para o banco de dados do
+        estudo, só com o seu código de participante. Uma cópia fica neste aparelho. Seus volumes não vão junto, com ou
+        sem sincronização.
       </li>
     </ul>
   );
@@ -235,13 +234,19 @@ function ConsentDialog() {
 }
 
 function StudyPanel() {
-  const [count, setCount] = useState<number | null>(null);
+  const [counts, setCounts] = useState<{ total: number; pending: number } | null>(null);
+  const count = counts?.total ?? 0;
   const code = participant();
 
+  // Counted again whenever an answer is saved or sent while the panel is open.
   useEffect(() => {
-    countStudyResponses()
-      .then(setCount)
-      .catch(() => setCount(0));
+    const load = () =>
+      countStudyResponses()
+        .then(setCounts)
+        .catch(() => setCounts({ total: 0, pending: 0 }));
+    load();
+    void sendPendingStudyResponses();
+    return subscribeStudy(load);
   }, []);
 
   const exportAnswers = async () => {
@@ -261,8 +266,6 @@ function StudyPanel() {
     URL.revokeObjectURL(url);
   };
 
-  const sendAnswers = () => sendStudyEmail();
-
   const copyAnswers = async () => {
     await navigator.clipboard.writeText(await exportStudyCsv());
     notify("Respostas copiadas.");
@@ -272,7 +275,8 @@ function StudyPanel() {
     closeStudyDialog();
     const confirmed = await confirmAction({
       title: "Sair do estudo?",
-      message: "As perguntas param de aparecer. As respostas já dadas continuam neste aparelho até você apagá-las, e ainda podem ser exportadas.",
+      message:
+        "As perguntas param de aparecer e nada mais é enviado, nem as respostas que ainda aguardam envio. As já enviadas continuam no estudo; a cópia deste aparelho fica até você apagá-la.",
       confirmLabel: "Sair do estudo",
     });
     if (confirmed) leaveStudy();
@@ -283,7 +287,7 @@ function StudyPanel() {
     closeStudyDialog();
     const confirmed = await confirmAction({
       title: "Apagar as respostas?",
-      message: `As ${count ?? ""} respostas guardadas neste aparelho somem de vez. As que você já exportou não são afetadas.`,
+      message: `As ${count} respostas guardadas neste aparelho somem de vez, inclusive as que ainda não foram enviadas. As já enviadas continuam no estudo: para apagá-las, peça a quem conduz o estudo, informando o código ${code ?? ""}.`,
       confirmLabel: "Apagar respostas",
       danger: true,
     });
@@ -299,7 +303,13 @@ function StudyPanel() {
       <p className="dialog__message">
         Participante <strong className="study__code">{code}</strong> · versão {APP_VERSION}
         <br />
-        {count === null ? "…" : count === 1 ? "1 resposta guardada" : `${count} respostas guardadas`} neste aparelho.
+        {counts === null
+          ? "…"
+          : count === 0
+            ? "Nenhuma resposta ainda."
+            : `${count === 1 ? "1 resposta" : `${count} respostas`}${
+                counts.pending === 0 ? (count === 1 ? ", enviada." : ", todas enviadas.") : `, ${counts.pending} aguardando envio (sem internet?).`
+              }`}
       </p>
       <div className="study__panel-actions">
         <button type="button" className="study__action" onClick={() => openStudyDialog({ kind: "sam", moment: "antes", context: { view: "volumes" } })}>
@@ -310,9 +320,6 @@ function StudyPanel() {
         </button>
         <button type="button" className="study__action" onClick={() => openStudyDialog({ kind: "esm", trigger: "manual", context: { view: "volumes" } })}>
           Contar como foi agora
-        </button>
-        <button type="button" className="study__action study__action--primary" onClick={sendAnswers} disabled={!count}>
-          Enviar respostas por email
         </button>
         <button type="button" className="study__action" onClick={exportAnswers} disabled={!count}>
           {Capacitor.isNativePlatform() ? "Copiar respostas (CSV)" : "Baixar respostas (CSV)"}
@@ -336,17 +343,6 @@ function StudyPanel() {
       </div>
     </StudyCard>
   );
-}
-
-// Opens the email to the researcher, saying what to do when the answers didn't fit in the message.
-export async function sendStudyEmail() {
-  try {
-    const { pasted } = await emailStudyResponses();
-    notify(pasted ? "Respostas copiadas. Cole-as na mensagem e toque em enviar." : "Confira a mensagem no seu email e toque em enviar.");
-  } catch (err) {
-    console.warn("Não foi possível preparar o email.", err);
-    notify(`Não foi possível abrir o email. Use “Copiar respostas” e envie para ${STUDY_EMAIL}.`);
-  }
 }
 
 // ESM -----------------------------------------------------------------------------------------------------------
@@ -662,9 +658,7 @@ function SamDialog({ moment, context }: { moment: SamMoment; context: StudyConte
     try {
       await saveSam(moment, { valence: values.valence!, arousal: values.arousal!, dominance: values.dominance! }, context);
       closeStudyDialog();
-      if (moment === "antes") notify("Obrigado! Pode começar as tarefas.");
-      // The end of the tasks is when the answers are complete, so sending them is offered right away.
-      else notify("Obrigado! Respostas arquivadas.", { label: "Enviar por email", run: () => void sendStudyEmail() });
+      notify(moment === "antes" ? "Obrigado! Pode começar as tarefas." : "Obrigado! Respostas arquivadas.");
     } catch (err) {
       console.warn("Não foi possível guardar a resposta.", err);
       notify("Não foi possível guardar a resposta.");

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, net, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, net } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -22,20 +22,6 @@ function createWindow() {
       contextIsolation: false,
       nodeIntegration: true,
     },
-  });
-
-  // mailto: links (the study's answers, see src/lib/study.ts) open the system's email app instead of the window.
-  const openMail = url => {
-    if (!url.startsWith('mailto:')) return false;
-    void shell.openExternal(url);
-    return true;
-  };
-  win.webContents.on('will-navigate', (event, url) => {
-    if (openMail(url)) event.preventDefault();
-  });
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    openMail(url);
-    return { action: 'deny' };
   });
 
   win.loadFile(path.join(__dirname, 'dist/index.html'));

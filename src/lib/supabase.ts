@@ -11,6 +11,30 @@ type Database = {
         Update: never;
         Relationships: [];
       };
+      // The usability study's answers (study.ts): logged-in users can only add rows, never read them.
+      study_responses: {
+        Row: {
+          id: string;
+          participant: string;
+          method: string;
+          moment: string;
+          answers: Record<string, unknown>;
+          context: Record<string, unknown>;
+          created_at: string;
+          received_at: string;
+        };
+        Insert: {
+          id: string;
+          participant: string;
+          method: string;
+          moment: string;
+          answers: Record<string, unknown>;
+          context: Record<string, unknown>;
+          created_at: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       // The cloud copy of synced users' local databases (sync.ts).
       sync_rows: {
         Row: {

@@ -174,7 +174,7 @@ export default function HelpView({ features, headStart, onOpenSettings }: HelpVi
                 Antes e depois das tarefas, marque como se sente em “Estudo de usabilidade”, na lista de volumes. Lá
                 também ficam o seu código, a exportação das respostas e a saída do estudo.
               </li>
-              <li>Só as respostas são guardadas, neste aparelho; nada do que você escreve.</li>
+              <li>Só as respostas vão para o estudo, com o seu código de participante; nada do que você escreve.</li>
             </ul>
           </section>
         )}
